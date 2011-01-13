@@ -25,6 +25,7 @@ import org.powertac.common.exceptions.CashUpdateException
 import org.powertac.common.exceptions.PositionUpdateException
 import org.powertac.common.*
 import org.powertac.common.enumerations.TariffState
+import org.powertac.common.enumerations.CustomerType
 
 class AccountingServiceTests extends GroovyTestCase {
 
@@ -195,6 +196,22 @@ class AccountingServiceTests extends GroovyTestCase {
     competition.save()
 
     assertEquals ([], accountingService.publishTariffList())
+  }
+
+  void testPublishCustomersAvailable() {
+    competition.current = true
+    competition.save()
+    assertEquals([], accountingService.publishCustomersAvailable())
+
+    Customer customer = new Customer(competition: competition, name: 'testCustomer', customerType: CustomerType.ConsumerHousehold, multiContracting: false, canNegotiate: false, upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0, windToPowerConversion: 0.0, sunToPowerConversion: 0.0, tempToPowerConversion: 0.0)
+    assertTrue (customer.validate() && customer.save())
+
+    assertEquals('testCustomer', accountingService.publishCustomersAvailable().first().name)
+
+    competition.current = false
+    competition.save()
+    assertEquals([], accountingService.publishCustomersAvailable())
+
   }
 
 }
