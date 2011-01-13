@@ -24,6 +24,7 @@ import org.powertac.common.enumerations.ProductType
 import org.powertac.common.exceptions.CashUpdateException
 import org.powertac.common.exceptions.PositionUpdateException
 import org.powertac.common.*
+import org.powertac.common.enumerations.TariffState
 
 class AccountingServiceTests extends GroovyTestCase {
 
@@ -146,5 +147,54 @@ class AccountingServiceTests extends GroovyTestCase {
     assertEquals(2, PositionUpdate.count())
   }
 
+  void testPublishTariffList() {
+
+    //No tariffs -> empty list
+    assertEquals ([], accountingService.publishTariffList())
+
+    competition.current = true
+    competition.save()
+    assertEquals([], accountingService.publishTariffList())
+    Tariff tariff1 = new Tariff(transactionId: 'someTransactionId1', competition: competition, broker: broker, tariffId: 'someTariffId1', tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 1.0, earlyExitFee: 1.0, baseFee: 1.0)
+    tariff1.setFlatPowerConsumptionPrice(9.0)
+    tariff1.setFlatPowerProductionPrice(11.0)
+    assertTrue (tariff1.validate() && tariff1.save())
+
+    //One tariff in one active competition
+    def tariffList = accountingService.publishTariffList()
+    assertEquals(1, tariffList.size())
+    assertEquals('someTariffId1', tariffList.first().tariffId)
+
+    Tariff tariff2 = new Tariff(transactionId: 'someTransactionId2', competition: competition, broker: broker, tariffId: 'someTariffId2', tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 100.0, earlyExitFee: 100.0, baseFee: 100.0)
+    tariff2.setFlatPowerConsumptionPrice(90.0)
+    tariff2.setFlatPowerProductionPrice(110.0)
+    assertTrue (tariff2.validate() && tariff2.save())
+
+    tariffList = accountingService.publishTariffList()
+    assertEquals(2, tariffList.size())
+    assertEquals(1, tariffList.findAll {it.tariffId == 'someTariffId1'}.size())
+    assertEquals(1, tariffList.findAll {it.tariffId == 'someTariffId2'}.size())
+
+    tariff1.tariffState = TariffState.Revoked
+    tariff1.save()
+
+    tariffList = accountingService.publishTariffList()
+    assertEquals(1, tariffList.size())
+    assertEquals('someTariffId2', tariffList.first().tariffId)
+
+    tariff2.latest = false
+    tariff2.save()
+
+    assertEquals ([], accountingService.publishTariffList())
+
+    tariff2.latest = true
+    tariff2.save()
+    assertEquals(1, tariffList.size())
+
+    competition.current = false
+    competition.save()
+
+    assertEquals ([], accountingService.publishTariffList())
+  }
 
 }

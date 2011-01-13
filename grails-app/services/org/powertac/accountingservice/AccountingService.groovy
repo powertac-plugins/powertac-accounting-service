@@ -45,8 +45,11 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
       positionUpdate.overallBalance = (overallBalance + positionDoUpdateCmd.relativeChange)
       positionUpdate.transactionId = IdGenerator.createId()
       positionUpdate.latest = true
-      assert (positionUpdate.validate() && positionUpdate.save())
-      return positionUpdate
+      if (positionUpdate.validate() && positionUpdate.save()) {
+        return positionUpdate
+      } else {
+        throw new PositionUpdateException("Failed to save PositionUpdate: $positionUpdate.errors.allErrors")
+      }
 
     } catch (Exception ex) {
       throw new PositionUpdateException('An error occurred during processPositionUpdate.', ex)
@@ -73,8 +76,11 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
       cashUpdate.overallBalance = (overallBalance + cashDoUpdateCmd.relativeChange)
       cashUpdate.transactionId = IdGenerator.createId()
       cashUpdate.latest = true
-      assert (cashUpdate.validate() && cashUpdate.save())
-      return cashUpdate
+      if(cashUpdate.validate() && cashUpdate.save()) {
+        return cashUpdate
+      } else {
+        throw new CashUpdate("Failed to save CashUpdate: ${cashUpdate.errors.allErrors}")
+      }
 
     } catch (Exception ex) {
       throw new CashUpdateException('An error occurred during processCashUpdate.', ex)
@@ -95,21 +101,21 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
   }
 
   List<Tariff> publishTariffList() {
-    Competition competition = Competition.currentCompetition
+    def competition = Competition.currentCompetition()
     if (!competition) {
       log.error("Failed to determine current competition during AccountingService.publishTariffList()")
       return []
     } else {
       return Tariff.withCriteria {
         eq('competition', competition)
-        eq('tariffState', TariffState.Published)
+        eq('tariffState', org.powertac.common.enumerations.TariffState.Published)
         eq('latest', true)
       }
     }
   }
 
   List<Customer> publishCustomersAvailable() {
-    Competition competition = Competition.currentCompetition
+    Competition competition = Competition.currentCompetition()
     if (!competition) {
       log.error("Failed to determine current competition during AccountingService.publishCustomersAvailable()")
       return []
