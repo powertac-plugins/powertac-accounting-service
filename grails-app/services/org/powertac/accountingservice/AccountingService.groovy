@@ -16,10 +16,10 @@
 
 package org.powertac.accountingservice
 
-import org.powertac.common.exceptions.CashUpdateException
-import org.powertac.common.exceptions.PositionUpdateException
 import org.powertac.common.*
 import org.powertac.common.command.*
+import org.powertac.common.exceptions.*
+import org.powertac.common.enumerations.TariffState
 
 /**
  * Default implementation of {@link org.powertac.common.interfaces.AccountingService}
@@ -117,8 +117,23 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
    * @param tariffDoPublishCmd command object that contains the tariff detais to be published
    * @throws org.powertac.common.exceptions.TariffPublishException is thrown if the tariff publishing fails
    */
-  void processTariffPublished(TariffDoPublishCmd tariffDoPublishCmd) {
-    //To change body of implemented methods use File | Settings | File Templates.
+  void processTariffPublished(TariffDoPublishCmd tariffDoPublishCmd) throws TariffPublishException {
+    if (!tariffDoPublishCmd) throw new TariffPublishException("TariffDoPublishCmd is null.")
+    //TODO: Add following line as soon as TariffDoPublishCmd in powertac-common plugin is @Validateable
+    //if (!tariffDoPublishCmd.validate()) throw new TariffPublishException("Failed to validate TariffDoPublishCmd: ${tariffDoPublishCmd.errors.allErrors}")
+    try {
+      Tariff tariff = new Tariff(tariffDoPublishCmd.properties)
+      tariff.latest = true
+      tariff.tariffState = TariffState.Published
+      tariff.transactionId = IdGenerator.createId()
+      if (!tariff.validate()) {
+        throw new TariffPublishException("Failed to validate new Tariff: ${tariff.errors.allErrors}")
+      } else {
+        tariff.save()
+      }
+    } catch (Exception ex) {
+      throw new TariffPublishException("An exception occurred during processTariffPublished()", ex)
+    }
   }
 
   /**
@@ -130,7 +145,7 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
    * @return the processed tariffDoReplyCmd object
    * @throws org.powertac.common.exceptions.TariffReplyException is thrown if the tariff publishing fails
    */
-  TariffDoReplyCmd processTariffReply(TariffDoReplyCmd tariffDoReplyCmd) {
+  TariffDoReplyCmd processTariffReply(TariffDoReplyCmd tariffDoReplyCmd) throws TariffReplyException {
     return null  //To change body of implemented methods use File | Settings | File Templates.
   }
 
@@ -143,7 +158,7 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
    * @return Tariff updated tariff object that reflects the revocation of the tariff
    * @throws org.powertac.common.exceptions.TariffRevokeException is thrown if the tariff publishing fails
    */
-  Tariff processTariffRevoke(TariffDoRevokeCmd tariffDoRevokeCmd) {
+  Tariff processTariffRevoke(TariffDoRevokeCmd tariffDoRevokeCmd) throws TariffRevokeException {
     return null  //To change body of implemented methods use File | Settings | File Templates.
   }
 
