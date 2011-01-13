@@ -117,7 +117,7 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
    * @param tariffDoPublishCmd command object that contains the tariff detais to be published
    * @throws org.powertac.common.exceptions.TariffPublishException is thrown if the tariff publishing fails
    */
-  void processTariffPublished(TariffDoPublishCmd tariffDoPublishCmd) throws TariffPublishException {
+  Tariff processTariffPublished(TariffDoPublishCmd tariffDoPublishCmd) throws TariffPublishException {
     if (!tariffDoPublishCmd) throw new TariffPublishException("TariffDoPublishCmd is null.")
     //TODO: Add following line as soon as TariffDoPublishCmd in powertac-common plugin is @Validateable
     //if (!tariffDoPublishCmd.validate()) throw new TariffPublishException("Failed to validate TariffDoPublishCmd: ${tariffDoPublishCmd.errors.allErrors}")
@@ -131,6 +131,7 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
       } else {
         tariff.save()
       }
+      return  tariff
     } catch (Exception ex) {
       throw new TariffPublishException("An exception occurred during processTariffPublished()", ex)
     }
@@ -145,7 +146,7 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
    * @return the processed tariffDoReplyCmd object
    * @throws org.powertac.common.exceptions.TariffReplyException is thrown if the tariff publishing fails
    */
-  TariffDoReplyCmd processTariffReply(TariffDoReplyCmd tariffDoReplyCmd) throws TariffReplyException {
+  Tariff processTariffReply(TariffDoReplyCmd tariffDoReplyCmd) throws TariffReplyException {
     return null  //To change body of implemented methods use File | Settings | File Templates.
   }
 
