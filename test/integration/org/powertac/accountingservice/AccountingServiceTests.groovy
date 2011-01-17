@@ -18,24 +18,29 @@
 
 package org.powertac.accountingservice
 
+import org.joda.time.LocalDateTime
 import org.powertac.common.command.CashDoUpdateCmd
 import org.powertac.common.command.PositionDoUpdateCmd
+import org.powertac.common.command.TariffDoPublishCmd
+import org.powertac.common.command.TariffDoReplyCmd
 import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.ProductType
 import org.powertac.common.enumerations.TariffState
 import org.powertac.common.exceptions.CashUpdateException
 import org.powertac.common.exceptions.PositionUpdateException
-import org.powertac.common.*
-import org.powertac.common.command.TariffDoPublishCmd
 import org.powertac.common.exceptions.TariffPublishException
+import org.powertac.common.exceptions.TariffReplyException
+import org.powertac.common.*
 
 class AccountingServiceTests extends GroovyTestCase {
 
   AccountingService accountingService
 
   Competition competition
+  Customer customer
   Product product
   Timeslot timeslot
+  Tariff tariff
   Broker broker
   String userName
   String apiKey
@@ -53,6 +58,12 @@ class AccountingServiceTests extends GroovyTestCase {
     assert (product.validate() && product.save())
     timeslot = new Timeslot(competition: competition, serialNumber: 0)
     assert (timeslot.validate() && timeslot.save())
+    customer = new Customer(competition: competition, name: 'testCustomer', customerType: CustomerType.ConsumerHousehold, multiContracting: false, canNegotiate: false, upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0, windToPowerConversion: 0.0, sunToPowerConversion: 0.0, tempToPowerConversion: 0.0)
+    assertTrue(customer.validate() && customer.save())
+    tariff = new Tariff(transactionId: 'someTransactionId1', competition: competition, broker: broker, tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 1.0, earlyExitFee: 1.0, baseFee: 1.0)
+    tariff.setFlatPowerConsumptionPrice(9.0)
+    tariff.setFlatPowerProductionPrice(11.0)
+    assertTrue(tariff.validate() && tariff.save())
   }
 
   protected void tearDown() {
@@ -106,6 +117,20 @@ class AccountingServiceTests extends GroovyTestCase {
     assertEquals(2, CashUpdate.count())
   }
 
+  void testProcessCashUpdateAutomaticTransactionId() {
+    CashDoUpdateCmd cmd = new CashDoUpdateCmd(competition: competition, broker: broker, relativeChange: -2.0, transactionId: 'someTransactionId')
+    assertTrue(cmd.validate())
+    def cashUpdate = accountingService.processCashUpdate(cmd)
+    assertEquals(1, CashUpdate.count())
+    assertEquals('someTransactionId', cashUpdate.transactionId)
+
+    CashDoUpdateCmd cmd2 = new CashDoUpdateCmd(competition: competition, broker: broker, relativeChange: -2.0)
+    assertTrue(cmd2.validate())
+    def cashUpdate2 = accountingService.processCashUpdate(cmd2)
+    assertEquals(2, CashUpdate.count())
+    assertNotNull(cashUpdate.transactionId)
+  }
+
   // processPositionUpdate tests
 
   void testProcessPositionUpdateNull() {
@@ -149,6 +174,32 @@ class AccountingServiceTests extends GroovyTestCase {
     assertEquals(2, PositionUpdate.count())
   }
 
+  void testPositionUpdateAutomaticTransactionIdGeneration() {
+    PositionDoUpdateCmd cmd = new PositionDoUpdateCmd(competition: competition, broker: broker, product: product, timeslot: timeslot, relativeChange: 1.0, transactionId: 'someTransactionId')
+    assertTrue(cmd.validate())
+    def positionUpdate = accountingService.processPositionUpdate(cmd)
+    assertEquals(1, PositionUpdate.count())
+    assertEquals('someTransactionId', positionUpdate.transactionId)
+
+    PositionDoUpdateCmd cmd2 = new PositionDoUpdateCmd(competition: competition, broker: broker, product: product, timeslot: timeslot, relativeChange: 1.0)
+    assertTrue(cmd2.validate())
+    def positionUpdate2 = accountingService.processPositionUpdate(cmd2)
+    assertEquals(2, PositionUpdate.count())
+    assertNotNull(positionUpdate2.transactionId)
+  }
+
+
+  void testPublishCustomersAvailable() {
+    competition.current = true
+    competition.save()
+    assertEquals('testCustomer', accountingService.publishCustomersAvailable().first().name)
+
+    competition.current = false
+    competition.save()
+    assertEquals([], accountingService.publishCustomersAvailable())
+
+  }
+
   void testPublishTariffList() {
 
     //No tariffs -> empty list
@@ -156,8 +207,9 @@ class AccountingServiceTests extends GroovyTestCase {
 
     competition.current = true
     competition.save()
+    tariff.delete() //delete tariff generated in setUp() method
     assertEquals([], accountingService.publishTariffList())
-    Tariff tariff1 = new Tariff(transactionId: 'someTransactionId1', competition: competition, broker: broker, tariffId: 'someTariffId1', tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 1.0, earlyExitFee: 1.0, baseFee: 1.0)
+    Tariff tariff1 = new Tariff(transactionId: 'someTransactionId1', competition: competition, broker: broker, tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 1.0, earlyExitFee: 1.0, baseFee: 1.0)
     tariff1.setFlatPowerConsumptionPrice(9.0)
     tariff1.setFlatPowerProductionPrice(11.0)
     assertTrue(tariff1.validate() && tariff1.save())
@@ -165,24 +217,26 @@ class AccountingServiceTests extends GroovyTestCase {
     //One tariff in one active competition
     def tariffList = accountingService.publishTariffList()
     assertEquals(1, tariffList.size())
-    assertEquals('someTariffId1', tariffList.first().tariffId)
+    assertEquals(TariffState.Published, tariffList.first().tariffState)
+    assertEquals('someTransactionId1', tariffList.first().transactionId)
+    assertNull(tariffList.first().parent)
 
-    Tariff tariff2 = new Tariff(transactionId: 'someTransactionId2', competition: competition, broker: broker, tariffId: 'someTariffId2', tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 100.0, earlyExitFee: 100.0, baseFee: 100.0)
+    Tariff tariff2 = new Tariff(transactionId: 'someTransactionId2', competition: competition, broker: broker, tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 100.0, earlyExitFee: 100.0, baseFee: 100.0)
     tariff2.setFlatPowerConsumptionPrice(90.0)
     tariff2.setFlatPowerProductionPrice(110.0)
     assertTrue(tariff2.validate() && tariff2.save())
 
     tariffList = accountingService.publishTariffList()
     assertEquals(2, tariffList.size())
-    assertEquals(1, tariffList.findAll {it.tariffId == 'someTariffId1'}.size())
-    assertEquals(1, tariffList.findAll {it.tariffId == 'someTariffId2'}.size())
+    assertEquals(1, tariffList.findAll {it.transactionId == 'someTransactionId1'}.size())
+    assertEquals(1, tariffList.findAll {it.transactionId == 'someTransactionId2'}.size())
 
     tariff1.tariffState = TariffState.Revoked
     tariff1.save()
 
     tariffList = accountingService.publishTariffList()
     assertEquals(1, tariffList.size())
-    assertEquals('someTariffId2', tariffList.first().tariffId)
+    assertEquals('someTransactionId2', tariffList.first().transactionId)
 
     tariff2.latest = false
     tariff2.save()
@@ -199,29 +253,17 @@ class AccountingServiceTests extends GroovyTestCase {
     assertEquals([], accountingService.publishTariffList())
   }
 
-  void testPublishCustomersAvailable() {
-    competition.current = true
-    competition.save()
-    assertEquals([], accountingService.publishCustomersAvailable())
 
-    Customer customer = new Customer(competition: competition, name: 'testCustomer', customerType: CustomerType.ConsumerHousehold, multiContracting: false, canNegotiate: false, upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0, windToPowerConversion: 0.0, sunToPowerConversion: 0.0, tempToPowerConversion: 0.0)
-    assertTrue(customer.validate() && customer.save())
-
-    assertEquals('testCustomer', accountingService.publishCustomersAvailable().first().name)
-
-    competition.current = false
-    competition.save()
-    assertEquals([], accountingService.publishCustomersAvailable())
-
-  }
 
   void testProcessTariffPublished() {
+    tariff.delete() //delete tariff automatically generated in setUp() method
+    def contractStartDate = new LocalDateTime()
+    def contractEndDate = new LocalDateTime()
     TariffDoPublishCmd cmd = new TariffDoPublishCmd()
     shouldFail(TariffPublishException) {
       accountingService.processTariffPublished(cmd)
     }
     cmd.id = 'testId'
-    cmd.tariffId = 'testTariffId'
     cmd.competition = competition
     cmd.broker = broker
     cmd.isDynamic = false
@@ -230,61 +272,66 @@ class AccountingServiceTests extends GroovyTestCase {
     cmd.earlyExitFee = 20.0
     cmd.baseFee = 30.0
     cmd.changeLeadTime = 1
-    cmd.powerConsumptionPrice0 = 1.0
-    cmd.powerConsumptionPrice1 = 1.0
-    cmd.powerConsumptionPrice2 = 1.0
-    cmd.powerConsumptionPrice3 = 1.0
-    cmd.powerConsumptionPrice4 = 1.0
-    cmd.powerConsumptionPrice5 = 1.0
-    cmd.powerConsumptionPrice6 = 1.0
-    cmd.powerConsumptionPrice7 = 1.0
-    cmd.powerConsumptionPrice8 = 1.0
-    cmd.powerConsumptionPrice9 = 1.0
-    cmd.powerConsumptionPrice10 = 1.0
-    cmd.powerConsumptionPrice11 = 1.0
-    cmd.powerConsumptionPrice12 = 1.0
-    cmd.powerConsumptionPrice13 = 1.0
-    cmd.powerConsumptionPrice14 = 1.0
-    cmd.powerConsumptionPrice15 = 1.0
-    cmd.powerConsumptionPrice16 = 1.0
-    cmd.powerConsumptionPrice17 = 1.0
-    cmd.powerConsumptionPrice18 = 1.0
-    cmd.powerConsumptionPrice19 = 1.0
-    cmd.powerConsumptionPrice20 = 1.0
-    cmd.powerConsumptionPrice21 = 1.0
-    cmd.powerConsumptionPrice22 = 1.0
-    cmd.powerConsumptionPrice23 = 1.0
+    cmd.contractStartDate = contractStartDate
+    cmd.contractEndDate = contractEndDate
+    cmd.minimumContractRuntime = 1
+    cmd.maximumContractRuntime = 10
+    cmd.powerConsumptionThreshold = 100.0
+    cmd.powerConsumptionSurcharge = 10.0
+    cmd.powerProductionThreshold = 88.0
+    cmd.powerProductionSurcharge = 888.0
 
-    cmd.powerProductionPrice0 = 9.0
-    cmd.powerProductionPrice1 = 9.0
-    cmd.powerProductionPrice2 = 9.0
-    cmd.powerProductionPrice3 = 9.0
-    cmd.powerProductionPrice4 = 9.0
-    cmd.powerProductionPrice5 = 9.0
-    cmd.powerProductionPrice6 = 9.0
-    cmd.powerProductionPrice7 = 9.0
-    cmd.powerProductionPrice8 = 9.0
-    cmd.powerProductionPrice9 = 9.0
-    cmd.powerProductionPrice10 = 9.0
-    cmd.powerProductionPrice11 = 9.0
-    cmd.powerProductionPrice12 = 9.0
-    cmd.powerProductionPrice13 = 9.0
-    cmd.powerProductionPrice14 = 9.0
-    cmd.powerProductionPrice15 = 9.0
-    cmd.powerProductionPrice16 = 9.0
-    cmd.powerProductionPrice17 = 9.0
-    cmd.powerProductionPrice18 = 9.0
-    cmd.powerProductionPrice19 = 9.0
-    cmd.powerProductionPrice20 = 9.0
-    cmd.powerProductionPrice21 = 9.0
-    cmd.powerProductionPrice22 = 9.0
-    cmd.powerProductionPrice23 = 9.0
+    for (i in 0..23) {
+      cmd."powerConsumptionPrice$i" = (i + 1.0)
+      cmd."powerProductionPrice$i" = (i + 9.0)
+    }
 
-    accountingService.processTariffPublished(cmd)
+    assertNotNull(accountingService.processTariffPublished(cmd))
 
     assertEquals(1, Tariff.count())
-    def tariff1 = Tariff.findByTariffId('testTariffId')
+    def tariff1 = Tariff.get('testId')
     assertNotNull(tariff1)
+    assertNull(tariff1.parent)
+    assertEquals(tariff1.competition, competition)
+    assertEquals(tariff1.broker, broker)
+    assertFalse(tariff1.isDynamic)
+    assertFalse(tariff1.isNegotiable)
+    assertEquals(10.0, tariff1.signupFee)
+    assertEquals(20.0, tariff1.earlyExitFee)
+    assertEquals(30.0, tariff1.baseFee)
+    assertEquals(1, tariff1.changeLeadTime)
+    assertEquals(contractStartDate, tariff1.contractStartDate)
+    assertEquals(contractEndDate, tariff1.contractEndDate)
+    assertEquals(1, tariff1.minimumContractRuntime)
+    assertEquals(10, tariff1.maximumContractRuntime)
+    assertEquals(100.0, tariff1.powerConsumptionThreshold)
+    assertEquals(10.0, tariff1.powerConsumptionSurcharge)
+    assertEquals(88.0, tariff1.powerProductionThreshold)
+    assertEquals(888.0, tariff1.powerProductionSurcharge)
+    for (i in 0..23) {
+      assertEquals((i + 1.0), tariff1."powerConsumptionPrice$i")
+      assertEquals((i + 9.0), tariff1."powerProductionPrice$i")
+    }
+  }
+
+  void testProcessTariffReplyNull() {
+    shouldFail(TariffReplyException) {
+      accountingService.processTariffReply(null)
+    }
+  }
+
+  void testProcessTariffReplyInvalidCmd() {
+    def tariffDoReplyCmd = new TariffDoReplyCmd(customer: null)
+    assertFalse(tariffDoReplyCmd.validate())
+    shouldFail(TariffReplyException) {
+      accountingService.processTariffReply(tariffDoReplyCmd)
+    }
+  }
+
+  void ProcessTariffReplyToNonNegotiablePublishedTariff() {
+    tariff.isNegotiable = true
+    def tariffDoReplyCmd = new TariffDoReplyCmd(parent: tariff, customer: customer)
+
   }
 
 }
