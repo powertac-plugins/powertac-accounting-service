@@ -13,6 +13,7 @@ grails.project.dependency.resolution = {
     grailsPlugins()
     grailsHome()
     mavenRepo "http://ibwstinger.iw.uni-karlsruhe.de/artifactory/plugins-release-local/"
+    mavenRepo "http://ibwstinger.iw.uni-karlsruhe.de/artifactory/plugins-snapshot-local/"
     mavenRepo "http://ibwstinger.iw.uni-karlsruhe.de/artifactory/libs-release-local/"
     grailsCentral()
 
@@ -31,8 +32,14 @@ grails.project.dependency.resolution = {
     // runtime 'mysql:mysql-connector-java:5.1.13'
   }
 }
+def repositoryUserName = '[your powertac artifactory user]'
+def repositoryPassword = '[your powertac artifactory pw]'
+
 grails.project.dependency.distribution = {
   remoteRepository(id: "powertacPlugins", url: "http://ibwstinger.iw.uni-karlsruhe.de/artifactory/plugins-release-local/") {
-    authentication username: "[your repo username]", password: "[your password]"
+    authentication username: repositoryUserName, password: repositoryPassword
+  }
+  remoteRepository(id: "powertacPluginSnapshots", url: "http://ibwstinger.iw.uni-karlsruhe.de/artifactory/plugins-snapshot-local/") {
+    authentication username: repositoryUserName, password: repositoryPassword
   }
 }
