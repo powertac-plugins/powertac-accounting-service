@@ -300,16 +300,9 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
    * @throws TariffUpdateException is thrown if the tariff updating fails.
    */
   List processTariffUpdate(TariffDoUpdateCmd tariffDoUpdateCmd) throws TariffUpdateException {
-    if (!tariffDoUpdateCmd) throw new  TariffUpdateException('TariffDoUpdateCmd is null')
-    if (!tariffDoUpdateCmd.validate()) throw new TariffUpdateException("Failed to validate TariffDoUpdateCmd: ${tariffDoUpdateCmd.errors.allErrors}")
-    try {
-      def originalTariff = tariffDoUpdateCmd.parent
-
-    }
-    catch (Exception ex) {
-    throw new TariffUpdateException('An exception occurred during processTariffUpdate()', ex)
+    log.error('Failed ot process tariff update: AcountingService.processTariffUpdate() is not yet implemented.')
+    return null
   }
-}
 
 /**
  * Returns a list of all currently active (i.e. subscribeable) tariffs (which might be empty)

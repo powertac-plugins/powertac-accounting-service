@@ -328,9 +328,11 @@ class AccountingServiceTests extends GroovyTestCase {
     }
   }
 
-  void ProcessTariffReplyToNonNegotiablePublishedTariff() {
+  void testProcessTariffReply() {
     tariff.isNegotiable = true
     def tariffDoReplyCmd = new TariffDoReplyCmd(parent: tariff, customer: customer)
+
+
 
   }
 
