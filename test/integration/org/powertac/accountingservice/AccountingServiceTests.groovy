@@ -58,7 +58,7 @@ class AccountingServiceTests extends GroovyTestCase {
     assert (product.validate() && product.save())
     timeslot = new Timeslot(competition: competition, serialNumber: 0)
     assert (timeslot.validate() && timeslot.save())
-    customer = new Customer(competition: competition, name: 'testCustomer', customerType: CustomerType.ConsumerHousehold, multiContracting: false, canNegotiate: false, upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0, windToPowerConversion: 0.0, sunToPowerConversion: 0.0, tempToPowerConversion: 0.0)
+    customer = new Customer(competition: competition, name: 'testCustomer', customerType: CustomerType.CustomerHousehold, multiContracting: false, canNegotiate: false, upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0, windToPowerConversion: 0.0, sunToPowerConversion: 0.0, tempToPowerConversion: 0.0)
     assertTrue(customer.validate() && customer.save())
     tariff = new Tariff(transactionId: 'someTransactionId1', competition: competition, broker: broker, tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 1.0, earlyExitFee: 1.0, baseFee: 1.0)
     tariff.setFlatPowerConsumptionPrice(9.0)
