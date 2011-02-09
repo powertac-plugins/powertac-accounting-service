@@ -16,8 +16,6 @@
 
 package org.powertac.accountingservice
 
-import org.joda.time.LocalDateTime
-import org.powertac.common.enumerations.TariffState
 import org.powertac.common.*
 import org.powertac.common.command.*
 import org.powertac.common.exceptions.*
@@ -111,24 +109,18 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
   }
 
   /**
-   * Method processes incoming tariffDoPublishCmd of a broker. The method does not
+   * Method processes incoming tariffSpec of a broker. The method does not
    * return any results objects as tariffs are published only periodically through the
    * {@code publishTariffList ( )} method
    *
-   * @param tariffDoPublishCmd command object that contains the tariff detais to be published
+   * @param tariffSpec command object that contains the tariff detais to be published
    * @throws org.powertac.common.exceptions.TariffPublishException is thrown if the tariff publishing fails
    */
-  Tariff processTariffPublished(TariffDoPublishCmd tariffDoPublishCmd) throws TariffPublishException {
-    if (!tariffDoPublishCmd) throw new TariffPublishException("TariffDoPublishCmd is null.")
-    //TODO: Add following line as soon as TariffDoPublishCmd in powertac-common plugin is @Validateable
-    //if (!tariffDoPublishCmd.validate()) throw new TariffPublishException("Failed to validate TariffDoPublishCmd: ${tariffDoPublishCmd.errors.allErrors}")
+  Tariff processTariffPublished(TariffSpecification tariffSpec) throws TariffPublishException {
+    if (!tariffSpec) throw new TariffPublishException("TariffSpec is null.")
+    if (!tariffSpec.validate()) throw new TariffPublishException("Failed to validate TariffSpec: ${tariffSpec.errors.allErrors}")
     try {
-      Tariff tariff = new Tariff(tariffDoPublishCmd.properties)
-      tariff.id = tariffDoPublishCmd.id
-      tariff.parent = null
-      tariff.latest = true
-      tariff.tariffState = TariffState.Published
-      tariff.transactionId = IdGenerator.createId()
+      Tariff tariff = new Tariff(tariffSpec: tariffSpec)
       if (!tariff.validate()) {
         throw new TariffPublishException("Failed to validate new Tariff: ${tariff.errors.allErrors}")
       } else {
@@ -137,45 +129,6 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
       return tariff
     } catch (Exception ex) {
       throw new TariffPublishException("An exception occurred during processTariffPublished()", ex)
-    }
-  }
-
-  /**
-   * Method processes incoming tariffDoReplyCmd of a broker or customer. The main task
-   * of this method is to persistently record the tariffDoReplyCmd and then to forward it
-   * downstream for further processing.
-   *
-   * @param tariffDoReplyCmd the tariff reply to store in the database
-   * @return the processed tariffDoReplyCmd object
-   * @throws org.powertac.common.exceptions.TariffReplyException is thrown if the tariff publishing fails
-   */
-  Tariff processTariffReply(TariffDoReplyCmd tariffDoReplyCmd) throws TariffReplyException {
-    if (!tariffDoReplyCmd) throw new TariffReplyException("TariffDoReplyCmd is null.")
-    if (!tariffDoReplyCmd.validate()) throw new TariffReplyException("Failed to validate TariffDoReplyCmd: ${tariffDoReplyCmd.errors.allErrors}")
-    try {
-      Tariff originalTariff = Tariff.withCriteria(uniqueResult: true) {
-        eq('competition', tariffDoReplyCmd.competition)
-        eq('broker', tariffDoReplyCmd.broker)
-        eq('parent', tariffDoReplyCmd.parent)
-        eq('latest', true)
-      }
-      if (originalTariff.parent) {
-        //set to false only for tariffs that have a parent reference (i.e. that are not the initially published instances of brokers), i.e. that are not the originally published tariffs. For the latter ones, setting latest to false would mean to revoke the tariff offer completely
-        originalTariff.latest = false
-        originalTariff.save()
-      }
-      Tariff tariff = new Tariff(tariffDoReplyCmd.properties)
-      tariff.latest = true
-      tariff.tariffState = TariffState.Published
-      tariff.transactionId = IdGenerator.createId()
-      if (!tariff.validate()) {
-        throw new TariffReplyException("Failed to validate new Tariff: ${tariff.errors.allErrors}")
-      } else {
-        tariff.save()
-      }
-      return tariff
-    } catch (Exception ex) {
-      throw new TariffReplyException("An exception occurred during processTariffPublished()", ex)
     }
   }
 
@@ -192,22 +145,16 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
     if (!tariffDoRevokeCmd) throw new TariffRevokeException("TariffDoRevokeCmd is null.")
     if (!tariffDoRevokeCmd.validate()) throw new TariffRevokeException("Failed to validate TariffDoRevokeCmd: ${tariffDoRevokeCmd.errors.allErrors}")
     try {
-      def originalTariff = tariffDoRevokeCmd.tariff
+      def tariff = Tariff.get(tariffDoRevokeCmd.tariffId)
       Tariff.withTransaction {tx ->
-        originalTariff.latest = false
-        originalTariff.save()
-        Tariff newTariff = new Tariff(originalTariff.properties)
-        newTariff.latest = true
-        newTariff.parent = originalTariff
-        newTariff.dateCreated = new LocalDateTime()
-        newTariff.tariffState = TariffState.Revoked
-        newTariff.transactionId = IdGenerator.createId()
-        if (!newTariff.validate()) {
-          throw new TariffRevokeException("Failed to validate new Tariff: ${newTariff.errors.allErrors}")
+        tariff.state = Tariff.State.WITHDRAWN
+        //newTariff.transactionId = IdGenerator.createId()
+        if (!tariff.validate()) {
+          throw new TariffRevokeException("Failed to validate new Tariff: ${tariff.errors.allErrors}")
         } else {
-          newTariff.save()
+          tariff.save()
         }
-        return newTariff
+        return tariff
       }
     }
     catch (Exception ex) {
@@ -228,25 +175,19 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
     if (!tariffDoSubscribeCmd) throw new TariffSubscriptionException("TariffDoSubscribeCmd is null.")
     if (!tariffDoSubscribeCmd.validate()) throw new TariffSubscriptionException("Failed to validate TariffDoSubscribeCmd: ${tariffDoSubscribeCmd.errors.allErrors}")
     try {
-      def originalTariff = tariffDoSubscribeCmd.tariff
+      def tariff = Tariff.get(tariffDoSubscribeCmd.tariffId)
       Tariff.withTransaction {tx ->
-        Tariff newTariff = new Tariff(originalTariff.properties)
-        newTariff.latest = true
-        newTariff.parent = originalTariff
-        newTariff.customer = tariffDoSubscribeCmd.customer
-        newTariff.dateCreated = new LocalDateTime()
-        newTariff.tariffState = TariffState.Subscribed
-        newTariff.transactionId = IdGenerator.createId()
-        if (!newTariff.validate()) {
-          throw new TariffSubscriptionException("Failed to validate Tariff subscription: ${newTariff.errors.allErrors}")
+        if (tariff.signupPayment) {
+          def cashUpdate = 
+              processCashUpdate(new CashDoUpdateCmd(competition: tariff.competition,
+                                                    broker: tariff.broker, 
+                                                    relativeChange: tariff.signupPayment, 
+                                                    reason: "Signup fee for subscription of customer ${newTariff.customer}", 
+                                                    //transactionId: tariff.transactionId, 
+                                                    origin: 'AccountingService'))
+          return [tariff, cashUpdate]
         } else {
-          newTariff.save()
-        }
-        if (originalTariff.signupFee) {
-          def cashUpdate = processCashUpdate(new CashDoUpdateCmd(competition: originalTariff.competition, broker: originalTariff.broker, relativeChange: originalTariff.signupFee, reason: "Signup fee for subscription of customer ${newTariff.customer}", transactionId: newTariff.transactionId, origin: 'AccountingService'))
-          return [newTariff, cashUpdate]
-        } else {
-          return [newTariff]
+          return [tariff]
         }
       }
     }
@@ -255,86 +196,36 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
     }
   }
 
-  /**
-   * Method processes incoming {@link TariffDoRevokeCmd}. The method implements the logic required to unsubscribe a customer from a tariff ahead of the originally agreed contract end.
-   * @param tariffDoEarlyExitCmd contains references to the customer who wishes to exit the tariff contract ahead of time as well as to the tariff contract that should be cancelled.
-   * @return List of objects which can include {@link CashUpdate} and {@link Tariff}. The tariff object reflects the cancellation of the tariff subscription while the (optional) {@link CashUpdate} contains the booking of the early exit fee into the broker's cash account
-   * @throws TariffEarlyExitException is thrown if the tariff contract cancellation fails.
-   */
-  List processTariffEarlyExit(TariffDoEarlyExitCmd tariffDoEarlyExitCmd) throws TariffEarlyExitException {
-    if (!tariffDoEarlyExitCmd) throw new TariffEarlyExitException("TariffDoEarlyExitCmd is null.")
-    if (!tariffDoEarlyExitCmd.validate()) throw new TariffEarlyExitException("Failed to validate TariffDoEarlyExitCmd: ${tariffDoEarlyExitCmd.errors.allErrors}")
-    try {
-      def originalTariff = tariffDoEarlyExitCmd.tariff
-      Tariff.withTransaction {tx ->
-        originalTariff.latest = false
-        originalTariff.save()
-        Tariff newTariff = new Tariff(originalTariff.properties)
-        newTariff.latest = true
-        newTariff.parent = originalTariff
-        newTariff.dateCreated = new LocalDateTime()
-        newTariff.tariffState = TariffState.EarlyCustomerExit
-        newTariff.transactionId = IdGenerator.createId()
-        if (!newTariff.validate()) {
-          throw new TariffEarlyExitException("Failed to validate early tariff exit object: ${newTariff.errors.allErrors}")
-        } else {
-          newTariff.save()
-        }
-        if (originalTariff.earlyExitFee) {
-          def cashUpdate = processCashUpdate(new CashDoUpdateCmd(competition: originalTariff.competition, broker: originalTariff.broker, relativeChange: originalTariff.earlyExitFee, reason: "Early exit fee from customer ${originalTariff.customer}", transactionId: newTariff.transactionId, origin: 'Accounting Service'))
-          return [newTariff, cashUpdate]
-        } else {
-          return [newTariff]
-        }
-      }
-    } catch (Exception ex) {
-      throw new TariffEarlyExitException("An exception occurred during processTariffEarlyExit()", ex)
-    }
-  }
-
-  /**
-   * Method processes incoming {@link TariffDoUpdateCmd}. The method implements the logic required to update the conditions of an existing tariff for all subscribed customers.
-   * @param tariffDoUpdateCmd contains the new (revised) tariff conditions
-   * @return List of {@link Tariff} objects which reflect the updated individual subscriptions for
-   * all customers subscribed to the updated tariff
-   * @throws TariffUpdateException is thrown if the tariff updating fails.
-   */
-  List processTariffUpdate(TariffDoUpdateCmd tariffDoUpdateCmd) throws TariffUpdateException {
-    log.error('Failed ot process tariff update: AcountingService.processTariffUpdate() is not yet implemented.')
-    return null
-  }
-
 /**
  * Returns a list of all currently active (i.e. subscribeable) tariffs (which might be empty)
  *
  * @return a list of all active tariffs, which might be empty if no tariffs are published
  */
-  List<Tariff> publishTariffList() {
-    def competition = Competition.currentCompetition()
-    if (!competition) {
-      log.error("Failed to determine current competition during AccountingService.publishTariffList()")
-      return []
-    } else {
-      return Tariff.withCriteria {
-        eq('competition', competition)
-        eq('tariffState', org.powertac.common.enumerations.TariffState.Published)
-        eq('latest', true)
-      }
-    }
-  }
+//  List<TariffSpecification> publishTariffList() {
+//    def competition = Competition.currentCompetition()
+//    if (!competition) {
+//      log.error("Failed to determine current competition during AccountingService.publishTariffList()")
+//      return []
+//    } else {
+//      return Tariff.withCriteria {
+//        eq('competition', competition)
+//        eq('tariffState', org.powertac.common.enumerations.TariffState.Published)
+//      }
+//    }
+//  }
 
 /**
  * Publishes the list of available customers (which might be empty)
  *
  * @return a list of all available customers, which might be empty if no customers are available
  */
-  List<Customer> publishCustomersAvailable() {
+  List<CustomerInfo> publishCustomersAvailable() {
     Competition competition = Competition.currentCompetition()
     if (!competition) {
       log.error("Failed to determine current competition during AccountingService.publishCustomersAvailable()")
       return []
     } else {
-      return Customer.findAllByCompetition(competition)
+      return CustomerInfo.findAllByCompetition(competition)
     }
   }
 }
