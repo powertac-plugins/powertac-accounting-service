@@ -42,26 +42,30 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
     if (!positionDoUpdateCmd.validate()) throw new PositionUpdateException("Failed to validate incoming PositionDoUpdateCommand: ${positionDoUpdateCmd.errors.allErrors}")
     try {
       BigDecimal overallBalance = 0.0
-      PositionUpdate oldPositionUpdate = PositionUpdate.withCriteria(uniqueResult: true) {
-        eq('competition', positionDoUpdateCmd.competition)
+      PositionUpdate positionUpdate = PositionUpdate.withCriteria(uniqueResult: true) {
         eq('broker', positionDoUpdateCmd.broker)
         eq('product', positionDoUpdateCmd.product)
         eq('timeslot', positionDoUpdateCmd.timeslot)
-        eq('latest', true)
       }
-      if (oldPositionUpdate) {
-        oldPositionUpdate.latest = false
-        oldPositionUpdate.save()
-        overallBalance = oldPositionUpdate.overallBalance
+      if (positionUpdate) {
+        //oldPositionUpdate.latest = false
+        //oldPositionUpdate.save()
+        overallBalance = positionUpdate.overallBalance
+        positionUpdate.relativeChange = positionDoUpdateCmd.relativeChange
+        positionUpdate.reason = positionDoUpdateCmd.reason
+        positionUpdate.origin = positionDoUpdateCmd.origin
       }
-
-      def positionUpdate = new PositionUpdate(positionDoUpdateCmd.properties)
+      else {
+        positionUpdate = new PositionUpdate(positionDoUpdateCmd.properties)
+      }
       positionUpdate.overallBalance = (overallBalance + positionDoUpdateCmd.relativeChange)
       if (!positionUpdate.transactionId) positionUpdate.transactionId = IdGenerator.createId()
-      positionUpdate.latest = true
+      //positionUpdate.latest = true
       if (positionUpdate.validate() && positionUpdate.save()) {
         return positionUpdate
-      } else {
+      } 
+      else {
+        positionUpdate.errors.allErrors.each { println it.toString() }
         throw new PositionUpdateException("Failed to save PositionUpdate: $positionUpdate.errors.allErrors")
       }
 
@@ -76,156 +80,61 @@ class AccountingService implements org.powertac.common.interfaces.AccountingServ
    * @return CashUpdate Latest {@link CashUpdate} which contains relative change, new overall balance, origin and reason for the cash update
    * @throws org.powertac.common.exceptions.CashUpdateException is thrown if a cash update fails
    */
-  CashUpdate processCashUpdate(CashDoUpdateCmd cashDoUpdateCmd) throws CashUpdateException {
+  CashUpdate processCashUpdate(CashDoUpdateCmd cashDoUpdateCmd) 
+  {
     if (!cashDoUpdateCmd) return null
-    if (!cashDoUpdateCmd.validate()) throw new CashUpdateException("Failed to validate incoming CashDoUpdateCmd: ${cashDoUpdateCmd.errors.allErrors}")
+    if (!cashDoUpdateCmd.validate()) {
+      log.error("Failed to validate incoming CashDoUpdateCmd: ${cashDoUpdateCmd.errors.allErrors}")
+      return null
+    }
+
     try {
       BigDecimal overallBalance = 0.0
-      CashUpdate oldCashUpdate = CashUpdate.withCriteria(uniqueResult: true) {
-        eq('competition', cashDoUpdateCmd.competition)
+      CashUpdate cashUpdate = CashUpdate.withCriteria(uniqueResult: true) {
         eq('broker', cashDoUpdateCmd.broker)
-        eq('latest', true)
+        //eq('latest', true)
       }
-      if (oldCashUpdate) {
-        oldCashUpdate.latest = false
-        oldCashUpdate.save()
-        overallBalance = oldCashUpdate.overallBalance
+      if (cashUpdate) {
+        //oldCashUpdate.latest = false
+        //oldCashUpdate.save()
+        overallBalance = cashUpdate.overallBalance
       }
-
-      def cashUpdate = new CashUpdate(cashDoUpdateCmd.properties)
+      else {
+        cashUpdate = new CashUpdate(cashDoUpdateCmd.properties)
+      }
+      cashUpdate.relativeChange = cashDoUpdateCmd.relativeChange
+      cashUpdate.reason = cashDoUpdateCmd.reason
+      cashUpdate.origin = cashDoUpdateCmd.origin
       cashUpdate.overallBalance = (overallBalance + cashDoUpdateCmd.relativeChange)
       if (!cashUpdate.transactionId) cashUpdate.transactionId = IdGenerator.createId()
-      cashUpdate.latest = true
+      //cashUpdate.latest = true
       if (cashUpdate.validate() && cashUpdate.save()) {
         return cashUpdate
-      } else {
-        throw new CashUpdateException("Failed to save CashUpdate: ${cashUpdate.errors.allErrors}")
+      } 
+      else {
+        log.error("Failed to save CashUpdate: ${cashUpdate.errors.allErrors}")
+        println "Failed to save CashUpdate: ${cashUpdate.errors.allErrors}"
       }
 
     } catch (Exception ex) {
-      throw new CashUpdateException('An error occurred during processCashUpdate.', ex)
+      log.error('An error occurred during processCashUpdate.')
+      println 'An error occurred during processCashUpdate.'
     }
-
+    return null
   }
-
-  /**
-   * Method processes incoming tariffSpec of a broker. The method does not
-   * return any results objects as tariffs are published only periodically through the
-   * {@code publishTariffList ( )} method
-   *
-   * @param tariffSpec command object that contains the tariff detais to be published
-   * @throws org.powertac.common.exceptions.TariffPublishException is thrown if the tariff publishing fails
-   */
-  Tariff processTariffPublished(TariffSpecification tariffSpec) throws TariffPublishException {
-    if (!tariffSpec) throw new TariffPublishException("TariffSpec is null.")
-    if (!tariffSpec.validate()) throw new TariffPublishException("Failed to validate TariffSpec: ${tariffSpec.errors.allErrors}")
-    try {
-      Tariff tariff = new Tariff(tariffSpec: tariffSpec)
-      if (!tariff.validate()) {
-        throw new TariffPublishException("Failed to validate new Tariff: ${tariff.errors.allErrors}")
-      } else {
-        tariff.save()
-      }
-      return tariff
-    } catch (Exception ex) {
-      throw new TariffPublishException("An exception occurred during processTariffPublished()", ex)
-    }
-  }
-
-  /**
-   * Method processes incoming tariffDoRevokeCmd of a broker. This method needs to
-   * implement logic that leads to the given tariff being revoked from the list of
-   * published tariffs.
-   *
-   * @param tariffDoRevokeCmd describing the tariff to be revoked
-   * @return Tariff updated tariff object that reflects the revocation of the tariff
-   * @throws org.powertac.common.exceptions.TariffRevokeException is thrown if the tariff publishing fails
-   */
-  Tariff processTariffRevoke(TariffDoRevokeCmd tariffDoRevokeCmd) throws TariffRevokeException {
-    if (!tariffDoRevokeCmd) throw new TariffRevokeException("TariffDoRevokeCmd is null.")
-    if (!tariffDoRevokeCmd.validate()) throw new TariffRevokeException("Failed to validate TariffDoRevokeCmd: ${tariffDoRevokeCmd.errors.allErrors}")
-    try {
-      def tariff = Tariff.get(tariffDoRevokeCmd.tariffId)
-      Tariff.withTransaction {tx ->
-        tariff.state = Tariff.State.WITHDRAWN
-        //newTariff.transactionId = IdGenerator.createId()
-        if (!tariff.validate()) {
-          throw new TariffRevokeException("Failed to validate new Tariff: ${tariff.errors.allErrors}")
-        } else {
-          tariff.save()
-        }
-        return tariff
-      }
-    }
-    catch (Exception ex) {
-      throw new TariffRevokeException("An exception occurred during processTariffRevoke()", ex)
-    }
-  }
-
-  /**
-   * Method processes incoming {@link TariffDoSubscribeCmd}. This method implements the
-   * logic required to make a customer subscribe to a particular tariff given either
-   * (i) a published or (ii) an individually agreed tariff instance to subscribe to.
-   *
-   * @param tariffDoSubscribeCmd contains references to the subscribing customer and to the tariff instance to subscribe to
-   * @return List of objects which can include {@link CashUpdate} and {@link Tariff}. The tariff object reflects the subscription of the customer defined in the {@link TariffDoSubscribeCmd} while the (optional) {@link CashUpdate} contains the cash booking of the (optional) signupFee into the broker's cash account
-   * @throws TariffSubscriptionException is thrown if the subscription fails
-   */
-  List processTariffSubscribe(TariffDoSubscribeCmd tariffDoSubscribeCmd) throws TariffSubscriptionException {
-    if (!tariffDoSubscribeCmd) throw new TariffSubscriptionException("TariffDoSubscribeCmd is null.")
-    if (!tariffDoSubscribeCmd.validate()) throw new TariffSubscriptionException("Failed to validate TariffDoSubscribeCmd: ${tariffDoSubscribeCmd.errors.allErrors}")
-    try {
-      def tariff = Tariff.get(tariffDoSubscribeCmd.tariffId)
-      Tariff.withTransaction {tx ->
-        if (tariff.signupPayment) {
-          def cashUpdate = 
-              processCashUpdate(new CashDoUpdateCmd(competition: tariff.competition,
-                                                    broker: tariff.broker, 
-                                                    relativeChange: tariff.signupPayment, 
-                                                    reason: "Signup fee for subscription of customer ${newTariff.customer}", 
-                                                    //transactionId: tariff.transactionId, 
-                                                    origin: 'AccountingService'))
-          return [tariff, cashUpdate]
-        } else {
-          return [tariff]
-        }
-      }
-    }
-    catch (Exception ex) {
-      throw new TariffSubscriptionException("An exception occurred during processTariffSubscribe()", ex)
-    }
-  }
-
-/**
- * Returns a list of all currently active (i.e. subscribeable) tariffs (which might be empty)
- *
- * @return a list of all active tariffs, which might be empty if no tariffs are published
- */
-//  List<TariffSpecification> publishTariffList() {
-//    def competition = Competition.currentCompetition()
-//    if (!competition) {
-//      log.error("Failed to determine current competition during AccountingService.publishTariffList()")
-//      return []
-//    } else {
-//      return Tariff.withCriteria {
-//        eq('competition', competition)
-//        eq('tariffState', org.powertac.common.enumerations.TariffState.Published)
-//      }
-//    }
-//  }
 
 /**
  * Publishes the list of available customers (which might be empty)
  *
  * @return a list of all available customers, which might be empty if no customers are available
  */
-  List<CustomerInfo> publishCustomersAvailable() {
-    Competition competition = Competition.currentCompetition()
-    if (!competition) {
-      log.error("Failed to determine current competition during AccountingService.publishCustomersAvailable()")
-      return []
-    } else {
-      return CustomerInfo.findAllByCompetition(competition)
-    }
-  }
+//  List<CustomerInfo> publishCustomersAvailable() {
+//    Competition competition = Competition.currentCompetition()
+//    if (!competition) {
+//      log.error("Failed to determine current competition during AccountingService.publishCustomersAvailable()")
+//      return []
+//    } else {
+//      return CustomerInfo.findAllByCompetition(competition)
+//    }
+//  }
 }
