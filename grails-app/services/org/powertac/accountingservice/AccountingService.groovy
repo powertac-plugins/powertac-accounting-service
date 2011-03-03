@@ -17,7 +17,7 @@
 package org.powertac.accountingservice
 
 import org.powertac.common.*
-import org.powertac.common.command.*
+import org.powertac.common.msg.*
 import org.powertac.common.exceptions.*
 
 /**

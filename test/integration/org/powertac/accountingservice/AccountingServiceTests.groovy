@@ -19,8 +19,8 @@ package org.powertac.accountingservice
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant
-import org.powertac.common.command.CashDoUpdateCmd
-import org.powertac.common.command.PositionDoUpdateCmd
+import org.powertac.common.msg.CashDoUpdateCmd
+import org.powertac.common.msg.PositionDoUpdateCmd
 import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.ProductType
 import org.powertac.common.exceptions.PositionUpdateException
