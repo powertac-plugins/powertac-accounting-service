@@ -21,13 +21,13 @@ import org.powertac.common.msg.*
 import org.powertac.common.exceptions.*
 
 /**
- * Default implementation of {@link org.powertac.common.interfaces.AccountingService}
+ * Default implementation of {@link org.powertac.common.interfaces.Accounting}
  *
- * @see org.powertac.common.interfaces.AccountingService
+ * @see org.powertac.common.interfaces.Accounting
  * @author Carsten Block
  * @version 0.1 - January 13, 2011
  */
-class AccountingService implements org.powertac.common.interfaces.AccountingService {
+class AccountingService implements org.powertac.common.interfaces.Accounting {
 
   /**
    * Method processes positionDoUpdateCmd objects adjusting the booked amounts
