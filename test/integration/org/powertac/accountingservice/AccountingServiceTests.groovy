@@ -101,11 +101,11 @@ class AccountingServiceTests extends GroovyTestCase {
     assertNotNull(cashUpdate.transactionId)
     assertEquals('someReason', cashUpdate.reason)
     assertEquals('someOrigin', cashUpdate.origin)
-    assertEquals(1, CashUpdate.count())
+    assertEquals(1, CashPosition.count())
   }
 
   void testProcessCashUpdateValidCommandWithPreviousPositions() {
-    CashUpdate cashUpdate1 = new CashUpdate(broker: broker, relativeChange: 1.0, overallBalance: 1.0, latest: true, transactionId: 'someTransactionId')
+    CashPosition cashUpdate1 = new CashPosition(broker: broker, relativeChange: 1.0, overallBalance: 1.0, latest: true, transactionId: 'someTransactionId')
     assertTrue(cashUpdate1.validate() && cashUpdate1.save())
 
     CashDoUpdateCmd cmd = new CashDoUpdateCmd(broker: broker, relativeChange: -2.0, reason: 'someReason', origin: 'someOrigin')
@@ -124,7 +124,7 @@ class AccountingServiceTests extends GroovyTestCase {
     CashDoUpdateCmd cmd = new CashDoUpdateCmd(broker: broker, relativeChange: -2.0, transactionId: 'someTransactionId')
     assertTrue(cmd.validate())
     def cashUpdate = accountingService.processCashUpdate(cmd)
-    assertEquals(1, CashUpdate.count())
+    assertEquals(1, CashPosition.count())
     assertEquals('someTransactionId', cashUpdate.transactionId)
 
     CashDoUpdateCmd cmd2 = new CashDoUpdateCmd(broker: broker, relativeChange: -2.0)
