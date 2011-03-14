@@ -1,19 +1,19 @@
 class PowertacAccountingServiceGrailsPlugin {
     // the plugin version
-    def version = "0.1.1-SNAPSHOT"
+    def version = "0.2"
     // the version or versions of Grails the plugin is designed for
     def grailsVersion = "1.3.6 > *"
     // the other plugins this plugin depends on
     def dependsOn = ['powertacCommon':'0.9 > *', 'powertacServerInterface':'0.1 > *']
-    //def dependsOn = ['powertacCommon':'0.9 > *']
+
     // resources that are excluded from plugin packaging
     def pluginExcludes = [
             "grails-app/views/error.gsp"
     ]
 
     // TODO Fill in these fields
-    def author = "Carsten Block"
-    def authorEmail = "powertac@carstenblock.org"
+    def author = "John Collins"
+    def authorEmail = "jcollins@cs.umn.edu"
     def title = "Accounting Service for PowerTAC competition"
     def description = '''\\
 Accounting Service is a plugin for the PowerTAC competition that does all the bookkeeping, i.e. it

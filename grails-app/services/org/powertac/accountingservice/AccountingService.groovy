@@ -32,7 +32,9 @@ import groovy.transform.Synchronized
  *
  * @author John Collins
  */
-class AccountingService implements org.powertac.common.interfaces.Accounting 
+class AccountingService
+    implements org.powertac.common.interfaces.Accounting,
+               org.powertac.common.interfaces.TimeslotPhaseProcessor
 {
   static transactional = true
   
@@ -43,48 +45,127 @@ class AccountingService implements org.powertac.common.interfaces.Accounting
   // transaction ID counter
   int idCount = 0
 
-  void activate (Instant time, int phaseNumber)
+  @Synchronized
+  MarketTransaction addMarketTransaction (Broker broker,
+                                          Timeslot timeslot,
+                                          BigDecimal price,
+                                          BigDecimal quantity)
   {
-    // TODO Auto-generated method stub
-    
-  }
-
-  MarketTransaction addMarketTransaction (Product product,
-                                          BigDecimal positionChange,
-                                          BigDecimal cashChange)
-  {
-    MarketTransaction mtx = new MarketTransaction ()
+    MarketTransaction mtx = new MarketTransaction(broker: broker,
+                                                  timeslot: timeslot,
+                                                  price: price,
+                                                  quantity: quantity,
+                                                  postedTime: timeService.currentTime)
+    mtx.id = idCount++
+    assert mtx.save()
+    pendingTransactions.add(mtx)
+    return mtx
   }
 
   @Synchronized
-  public TariffTransaction addTariffTransaction (TariffTransactionType txType,
-                                                 Tariff tariff,
-                                                 CustomerInfo customer,
-                                                 int customerCount,
-                                                 BigDecimal amount,
-                                                 BigDecimal charge)
+  public TariffTransaction addTariffTransaction(TariffTransactionType txType,
+                                                Tariff tariff,
+                                                CustomerInfo customer,
+                                                int customerCount,
+                                                BigDecimal quantity,
+                                                BigDecimal charge)
   {
-    TariffTransaction ttx = new TariffTransaction(id: idCount++, broker: tariff.broker,
+    TariffTransaction ttx = new TariffTransaction(broker: tariff.broker,
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
             customerInfo:customer, customerCount:customerCount,
-            amount:amount, charge:charge)
+            quantity:quantity, charge:charge)
+    ttx.id = idCount++
     assert ttx.save()
     pendingTransactions.add(ttx)
     return ttx
   }
 
-  List<TariffTransaction> getTariffTransactions (Broker broker)
+  // Gets the net load. Note that this only works BEFORE the day's transactions
+  // have been processed.
+  @Synchronized
+  BigDecimal getCurrentNetLoad (Broker broker)
   {
-    return pendingTransactions.findAll { tx ->
-      tx instanceof TariffTransaction &&
-      tx.broker == broker && 
-      (tx.txType == TariffTransactionType.CONSUME || 
-       tx.txType == TariffTransactionType.PRODUCE) }
+    BigDecimal netLoad = 0.0
+    pendingTransactions.each { tx ->
+      if (tx instanceof TariffTransaction && tx.broker == broker ) {
+        if (tx.txType == TariffTransactionType.CONSUME ||
+            tx.txType == TariffTransactionType.PRODUCE) {
+          netLoad += tx.quantity
+        }
+      }
+    }
+    return netLoad
   }
 
-  BigDecimal getCurrentNetMktPosition (Broker broker)
+  /**
+   * Gets the net market position for the current timeslot. This only works on
+   * processed transactions, but it can be used before activation in case there
+   * can be no new market transactions for the current timeslot. This is the
+   * normal case.
+   */
+  @Synchronized
+  BigDecimal getCurrentMarketPosition (Broker broker)
   {
-    // TODO Auto-generated method stub
-    return null;
+    Timeslot current = Timeslot.currentTimeslot()
+    println "current timeslot: ${current.serialNumber}"
+    MarketPosition position =
+        MarketPosition.findByBrokerAndTimeslot(broker, current)
+    if (position == null) {
+      println "null position for ts ${current.serialNumber}"
+      return 0.0
+    }
+    return position.overallBalance
+  }
+
+  @Synchronized
+  void activate (Instant time, int phaseNumber)
+  {
+    // walk through the pending transactions and run the updates
+    pendingTransactions.each { tx ->
+      processTransaction(tx)
+    }
+    // TODO - send updated data to brokers
+  }
+  
+  // process a tariff transaction
+  private void processTransaction (TariffTransaction tx)
+  {
+    ensureCash(tx.broker)
+    CashPosition cash = tx.broker.cash
+    cash.deposit tx.charge
+    cash.addToTariffTransactions(tx)
+    cash.save()
+    tx.broker.save()
+  }
+  
+  // process a market transaction
+  private void processTransaction (MarketTransaction tx)
+  {
+    ensureCash(tx.broker)
+    CashPosition cash = tx.broker.cash
+    cash.deposit(-tx.price)
+    cash.addToMarketTransactions(tx)
+    MarketPosition mkt = 
+        MarketPosition.findByBrokerAndTimeslot(tx.broker, tx.timeslot)
+    if (mkt == null) {
+      mkt = new MarketPosition(broker: tx.broker, timeslot: tx.timeslot)
+      mkt.validate()
+      assert mkt.save()
+      //println "New MarketPosition(${tx.broker.userName}, ${tx.timeslot.serialNumber}): ${mkt.id}"
+      tx.broker.addToMarketPositions(mkt)
+    }
+    mkt.updateBalance(tx.quantity)
+    assert mkt.save()
+    //println "MarketPosition count = ${MarketPosition.count()}"
+    assert tx.broker.save()
+  }
+  
+  // make sure the broker has a non-null cash position
+  private void ensureCash (Broker broker)
+  {
+    if (broker.cash == null) {
+      broker.cash = new CashPosition(broker: broker)
+      broker.save()     
+    }
   }
 }

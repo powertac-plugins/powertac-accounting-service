@@ -19,299 +19,248 @@ package org.powertac.accountingservice
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant
-import org.powertac.common.msg.CashDoUpdateCmd
-import org.powertac.common.msg.PositionDoUpdateCmd
 import org.powertac.common.enumerations.CustomerType
-import org.powertac.common.enumerations.ProductType
+import org.powertac.common.enumerations.PowerType;
+import org.powertac.common.enumerations.TariffTransactionType;
 import org.powertac.common.exceptions.PositionUpdateException
 import org.powertac.common.*
 
-class AccountingServiceTests extends GroovyTestCase {
+class AccountingServiceTests extends GroovyTestCase 
+{
+  def timeService // dependency injection
+  def accountingService
 
-  AccountingService accountingService
-
-  Competition competition
-  CustomerInfo customerInfo
-  Product product
-  Timeslot timeslot
-  TariffSpecification tariffSpec
-  Broker broker
-  String userName
-  String apiKey
+  CustomerInfo customer1
+  CustomerInfo customer2
+  CustomerInfo customer3
+  Tariff tariffB1
+  Tariff tariffB2
+  Tariff tariffJ1
+  Broker bob
+  Broker jim
   int nameCounter = 0
 
-  def timeService // dependency injection
-
-  protected void setUp() {
+  protected void setUp() 
+  {
     super.setUp()
-    timeService.setCurrentTime(new DateTime(2011, 1, 26, 12, 0, 0, 0, DateTimeZone.UTC))
-    userName = 'testBroker'
-    apiKey = 'testApiKey-which-needs-to-be-longer-than-32-characters'
-    competition = new Competition(name: "test", current: true)
-    assert (competition != null)
-    assert (competition.name != null)
-    if (!competition.validate()) {
-      competition.errors.allErrors.each {
-        println it.toString()
-      }
-      fail("could not validate competition")
-    }
-    assert (competition.validate() && competition.save())
-    broker = new Broker(userName: userName, apiKey: apiKey)
-    assert (broker.validate() && broker.save())
-    product = new Product(productType: ProductType.Future)
-    assert (product.validate() && product.save())
-    timeslot = new Timeslot(serialNumber: 0,
-                            startInstant: timeService.currentTime,
-                            endInstant: new Instant(timeService.currentTime.millis + timeService.HOUR))
-    assert (timeslot.validate() && timeslot.save())
-    customerInfo = new CustomerInfo(name: 'testCustomer', customerType: CustomerType.CustomerHousehold, multiContracting: false, canNegotiate: false, upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0, windToPowerConversion: 0.0, sunToPowerConversion: 0.0, tempToPowerConversion: 0.0)
-    assertTrue(customerInfo.validate() && customerInfo.save())
-    //tariff = new Tariff(transactionId: 'someTransactionId1', competition: competition, broker: broker, tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 1.0, earlyExitFee: 1.0, baseFee: 1.0)
-    //tariff.setFlatPowerConsumptionPrice(9.0)
-    //tariff.setFlatPowerProductionPrice(11.0)
-    //assertTrue(tariff.validate() && tariff.save())
+    
+    // clean up from other tests
+    TariffTransaction.list()*.delete()
+    accountingService.idCount = 0
+    accountingService.pendingTransactions = []
+    Timeslot.list()*.delete()
+
+    // set the clock
+    def now = new DateTime(2011, 1, 26, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
+    timeService.setCurrentTime(now)
+    
+    // set up brokers and customers
+    bob = new Broker(userName: "Bob")
+    assert (bob.save())
+    jim = new Broker(userName: "Jim")
+    assert (jim.save())
+    customer1 = new CustomerInfo(name: 'downtown',
+        customerType: CustomerType.CustomerHousehold, 
+        upperPowerCap: 100.0, lowerPowerCap: 10.0)
+    assert(customer1.save())
+    customer2 = new CustomerInfo(name: 'suburbs',
+        customerType: CustomerType.CustomerHousehold, 
+        upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0)
+    assert(customer2.save())
+    customer3 = new CustomerInfo(name: 'exurbs',
+        customerType: CustomerType.CustomerHousehold, 
+        upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 10.0,
+        sunToPowerConversion: 200.0)
+    assert(customer3.save())
+
+    // set up tariffs - tariff1 for consumption, tariff2 for production
+    Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
+    def tariffSpec = new TariffSpecification(brokerId: bob.id,
+                                             expiration: exp, 
+                                             minDuration: TimeService.WEEK * 8,
+                                             periodicPayment: 0.02)
+    tariffSpec.addToRates(new Rate(value: 0.121))
+    assert tariffSpec.save()
+    tariffB1 = new Tariff(tariffSpec: tariffSpec)
+    tariffB1.init()
+    assert tariffB1.save()
+    tariffSpec = new TariffSpecification(brokerId: bob.id, 
+                                         minDuration: TimeService.WEEK * 8,
+                                         expiration: exp, powerType: PowerType.PRODUCTION)
+    tariffSpec.addToRates(new Rate(value: 0.09))
+    assert tariffSpec.save()
+    tariffB2 = new Tariff(tariffSpec: tariffSpec)
+    tariffB2.init()
+    assert tariffB2.save()
+    tariffSpec = new TariffSpecification(brokerId: jim.id, 
+                                         minDuration: TimeService.WEEK * 8,
+                                         expiration: exp, periodicPayment: 0.01)
+    tariffSpec.addToRates(new Rate(value: 0.123))
+    assert tariffSpec.save()
+    tariffJ1 = new Tariff(tariffSpec: tariffSpec)
+    tariffJ1.init()
+    assert tariffJ1.save()
+    
+    // set up some timeslots
+    def ts = new Timeslot(serialNumber: 3,
+                          startInstant: new Instant(now.millis - TimeService.HOUR),
+                          endInstant: now, enabled: false)
+    assert(ts.save())
+    ts = new Timeslot(serialNumber: 4,
+                      startInstant: now,
+                      endInstant: new Instant(now.millis + TimeService.HOUR), 
+                      enabled: false)
+    assert(ts.save())
+    ts = new Timeslot(serialNumber: 5,
+                      startInstant: new Instant(now.millis + TimeService.HOUR),
+                      endInstant: new Instant(now.millis + TimeService.HOUR * 2), 
+                      enabled: true)
+    assert(ts.save())
+    ts = new Timeslot(serialNumber: 6,
+                      startInstant: new Instant(now.millis + TimeService.HOUR * 2),
+                      endInstant: new Instant(now.millis + TimeService.HOUR * 3), 
+                      enabled: true)
+    assert(ts.save())
   }
 
-  protected void tearDown() {
+  protected void tearDown() 
+  {
     super.tearDown()
   }
 
-  void testAccountingServiceNotNull() {
+  void testAccountingServiceNotNull() 
+  {
     assertNotNull(accountingService)
   }
-
-  //processCashUpdate tests
-
-  void testProcessCashUpdateNull() {
-    assertNull(accountingService.processCashUpdate(null))
+  
+  // create and test tariff transactions
+  void testTariffTransaction ()
+  {
+    accountingService.addTariffTransaction(TariffTransactionType.SIGNUP,
+      tariffB1, customer1, 0, 0.0, 42.1)
+    accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
+      tariffB1, customer2, 7, 77.0, 7.7)
+    assertEquals("correct number in list", 2, accountingService.pendingTransactions.size())
+    assertEquals("correct number in db", 2, TariffTransaction.count())
+    def ttx = TariffTransaction.get(0)
+    assertNotNull("first ttx not null", ttx)
+    assertEquals("correct charge id 0", 42.1, ttx.charge, 1e-6)
+    ttx = TariffTransaction.get(1)
+    assertNotNull("second ttx not null", ttx)
+    assertEquals("correct amount id 1", 77.0, ttx.quantity, 1e-6)
+  }
+  
+  void testCurrentNetLoad ()
+  {
+    // some usage for Bob
+    accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
+      tariffB1, customer1, 7, 77.0, 7.7)
+    accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
+      tariffB1, customer2, 6, 83.0, 8.0)
+    accountingService.addTariffTransaction(TariffTransactionType.PRODUCE,
+      tariffB2, customer3, 3, -55.0, -4.5)
+    // some usage for Jim
+    accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
+      tariffJ1, customer2, 12, 120.0, 8.4)
+    assertEquals("correct net load for Bob", (77.0 + 83.0 - 55.0),
+                  accountingService.getCurrentNetLoad(bob), 1e-6)
+    assertEquals("correct net load for Jim", 120.0,
+                  accountingService.getCurrentNetLoad(jim), 1e-6)
+  }
+  
+  // create and test market transactions
+  void testMarketTransaction ()
+  {
+    accountingService.addMarketTransaction(bob,
+        Timeslot.findBySerialNumber(5), 45.0, 0.5)
+    accountingService.addMarketTransaction(bob,
+        Timeslot.findBySerialNumber(6), 43.0, 0.7)
+    assertEquals("correct number in list", 2, accountingService.pendingTransactions.size())
+    assertEquals("correct number in db", 2, MarketTransaction.count())
+    def mtx = MarketTransaction.get(0)
+    assertNotNull("first mtx not null", mtx)
+    assertEquals("correct timeslot id 0", 5, mtx.timeslot.serialNumber)
+    assertEquals("correct price id 0", 45.0, mtx.price, 1e-6)
+    mtx = MarketTransaction.get(1)
+    assertNotNull("second mtx not null", mtx)
+    assertEquals("correct quantity id 1", 0.7, mtx.quantity, 1e-6)
   }
 
-  void testProcessCashUpdateInvalidCommandObject() {
-    assertNull(accountingService.processCashUpdate(new CashDoUpdateCmd()))
+  // test activation
+  void testActivate ()
+  {
+    // market transactions
+    accountingService.addMarketTransaction(bob,
+        Timeslot.findBySerialNumber(5), 45.0, 0.5)
+    accountingService.addMarketTransaction(bob,
+        Timeslot.findBySerialNumber(5), 31.0, 0.3)
+    accountingService.addMarketTransaction(bob,
+        Timeslot.findBySerialNumber(6), 43.0, 0.7)
+    accountingService.addMarketTransaction(jim,
+        Timeslot.findBySerialNumber(5), 35.0, 0.4)
+    accountingService.addMarketTransaction(jim,
+        Timeslot.findBySerialNumber(5), -20.0, -0.2)
+    // tariff transactions
+    accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
+        tariffB1, customer1, 7, 77.0, 7.7)
+    accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
+        tariffB1, customer2, 6, 83.0, 8.0)
+    accountingService.addTariffTransaction(TariffTransactionType.PRODUCE,
+        tariffB2, customer3, 3, -55.0, -4.5)
+    accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
+        tariffJ1, customer2, 12, 120.0, 8.4)
+    assertEquals("correct number in list", 9, accountingService.pendingTransactions.size())
+    // activate and check cash and market positions
+    accountingService.activate(timeService.currentTime, 3)
+    assertEquals("correct cash balance, Bob",
+        (-45.0 - 31.0 - 43.0 + 7.7 + 8.0 -4.5), bob.cash.overallBalance, 1e-6)
+    assertEquals("correct cash balance, Jim",
+        (-35.0 + 20.0 + 8.4), jim.cash.overallBalance, 1e-6)
+    assertEquals("3 mkt positions", 3, MarketPosition.count())
+    MarketPosition mkt = 
+        MarketPosition.findByBrokerAndTimeslot(bob, Timeslot.findBySerialNumber(5))
+    assertNotNull("found market position b5", mkt)
+    assertEquals("correct mkt position, Bob, ts5",  0.8, mkt.overallBalance, 1e-6)
+    mkt = MarketPosition.findByBrokerAndTimeslot(bob, Timeslot.findBySerialNumber(6))
+    assertNotNull("found market position b6", mkt)
+    assertEquals("correct mkt position, Bob, ts6",  0.7, mkt.overallBalance, 1e-6)
+    mkt = MarketPosition.findByBrokerAndTimeslot(jim, Timeslot.findBySerialNumber(5))
+    assertNotNull("found market position j5", mkt)
+    assertEquals("correct mkt position, Jim, ts5",  0.2, mkt.overallBalance, 1e-6)
   }
+  
+  // net market position only works after activation
+  void testCurrentMarketPosition ()
+  {
+    accountingService.addMarketTransaction(bob,
+        Timeslot.findBySerialNumber(5), 45.0, 0.5)
+    accountingService.addMarketTransaction(bob,
+        Timeslot.findBySerialNumber(5), 31.0, 0.3)
+    accountingService.addMarketTransaction(bob,
+        Timeslot.findBySerialNumber(6), 43.0, 0.7)
+    accountingService.addMarketTransaction(jim,
+        Timeslot.findBySerialNumber(5), 35.0, 0.4)
+    accountingService.addMarketTransaction(jim,
+        Timeslot.findBySerialNumber(5), -20.0, -0.2)
+    assertEquals("correct number in list", 5, accountingService.pendingTransactions.size())
+    accountingService.activate(timeService.currentTime, 3)
+    // current timeslot is 4, should be 0 mkt posn
+    assertEquals("correct position, bob, ts4", 0.0,
+        accountingService.getCurrentMarketPosition (bob), 1e-6)
+    assertEquals("correct position, jim, ts4", 0.0,
+        accountingService.getCurrentMarketPosition (jim), 1e-6)
+    // move forward to timeslot 5 and try again
+    timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
+    assertEquals("correct position, bob, ts5", 0.8,
+        accountingService.getCurrentMarketPosition (bob), 1e-6)
+    assertEquals("correct position, jim, ts5", 0.2,
+        accountingService.getCurrentMarketPosition (jim), 1e-6)
+    // another hour and try again
+    timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
+    assertEquals("correct position, bob, ts5", 0.7,
+        accountingService.getCurrentMarketPosition (bob), 1e-6)
+    assertEquals("correct position, jim, ts5", 0.0,
+        accountingService.getCurrentMarketPosition (jim), 1e-6)
 
-  void testProcessCashUpdateValidCommandNoPreviousPosition() {
-    CashDoUpdateCmd cmd = new CashDoUpdateCmd(broker: broker, relativeChange: 1.0, reason: 'someReason', origin: 'someOrigin')
-    assertTrue(cmd.validate())
-    def cashUpdate = accountingService.processCashUpdate(cmd)
-    assertNotNull("result should not be null", cashUpdate)
-    assertEquals(1.0, cashUpdate.relativeChange)
-    assertEquals(1.0, cashUpdate.overallBalance)
-    assertNotNull(cashUpdate.transactionId)
-    assertEquals('someReason', cashUpdate.reason)
-    assertEquals('someOrigin', cashUpdate.origin)
-    assertEquals(1, CashPosition.count())
   }
-
-  void testProcessCashUpdateValidCommandWithPreviousPositions() {
-    CashPosition cashUpdate1 = new CashPosition(broker: broker, relativeChange: 1.0, overallBalance: 1.0, latest: true, transactionId: 'someTransactionId')
-    assertTrue(cashUpdate1.validate() && cashUpdate1.save())
-
-    CashDoUpdateCmd cmd = new CashDoUpdateCmd(broker: broker, relativeChange: -2.0, reason: 'someReason', origin: 'someOrigin')
-    assertTrue(cmd.validate())
-
-    def cashUpdate2 = accountingService.processCashUpdate(cmd)
-    assertEquals(-2.0, cashUpdate2.relativeChange)
-    assertEquals(-1.0, cashUpdate2.overallBalance)
-    assertNotNull(cashUpdate2.transactionId)
-    assertEquals('someReason', cashUpdate2.reason)
-    assertEquals('someOrigin', cashUpdate2.origin)
-    //assertEquals(2, CashUpdate.count())
-  }
-
-  void testProcessCashUpdateAutomaticTransactionId() {
-    CashDoUpdateCmd cmd = new CashDoUpdateCmd(broker: broker, relativeChange: -2.0, transactionId: 'someTransactionId')
-    assertTrue(cmd.validate())
-    def cashUpdate = accountingService.processCashUpdate(cmd)
-    assertEquals(1, CashPosition.count())
-    assertEquals('someTransactionId', cashUpdate.transactionId)
-
-    CashDoUpdateCmd cmd2 = new CashDoUpdateCmd(broker: broker, relativeChange: -2.0)
-    assertTrue(cmd2.validate())
-    def cashUpdate2 = accountingService.processCashUpdate(cmd2)
-    //assertEquals(2, CashUpdate.count())
-    assertNotNull(cashUpdate.transactionId)
-  }
-
-  // processPositionUpdate tests
-
-  void testProcessPositionUpdateNull() {
-    assertNull(accountingService.processPositionUpdate(null))
-  }
-
-  void testProcessPositionUpdateInvalidCommandObject() {
-    shouldFail(PositionUpdateException) {
-      accountingService.processPositionUpdate(new PositionDoUpdateCmd())
-    }
-  }
-
-  void testProcessPositionUpdateValidCommandNoPreviousPosition() {
-    PositionDoUpdateCmd cmd = new PositionDoUpdateCmd(broker: broker, product: product, timeslot: timeslot, relativeChange: 1.0, reason: 'someReason', origin: 'someOrigin')
-    assertTrue(cmd.validate())
-    def positionUpdate = accountingService.processPositionUpdate(cmd)
-    assertEquals(1.0, positionUpdate.relativeChange)
-    assertEquals(1.0, positionUpdate.overallBalance)
-    assertNotNull(positionUpdate.transactionId)
-    assertEquals('someReason', positionUpdate.reason)
-    assertEquals('someOrigin', positionUpdate.origin)
-    assertEquals(1, PositionUpdate.count())
-  }
-
-  void testProcessPositionUpdateValidCommandWithPreviousPositions() {
-    PositionUpdate positionUpdate1 = new PositionUpdate(broker: broker, product: product, timeslot: timeslot, relativeChange: 1.0, overallBalance: 1.0, latest: true, transactionId: 'someTransactionId')
-    assertTrue(positionUpdate1.validate() && positionUpdate1.save())
-
-    PositionDoUpdateCmd cmd = new PositionDoUpdateCmd(broker: broker, product: product, timeslot: timeslot, relativeChange: -2.0, reason: 'someReason', origin: 'someOrigin')
-    assertTrue(cmd.validate())
-
-    def positionUpdate2 = accountingService.processPositionUpdate(cmd)
-    assertEquals(-2.0, positionUpdate2.relativeChange)
-    assertEquals(-1.0, positionUpdate2.overallBalance)
-    assertNotNull(positionUpdate2.transactionId)
-    assertEquals('someReason', positionUpdate2.reason)
-    assertEquals('someOrigin', positionUpdate2.origin)
-    //assertEquals(2, PositionUpdate.count())
-  }
-
-  void testPositionUpdateAutomaticTransactionIdGeneration() {
-    PositionDoUpdateCmd cmd = new PositionDoUpdateCmd(broker: broker, product: product, timeslot: timeslot, relativeChange: 1.0, transactionId: 'someTransactionId')
-    assertTrue(cmd.validate())
-    def positionUpdate = accountingService.processPositionUpdate(cmd)
-    assertEquals(1, PositionUpdate.count())
-    assertEquals('someTransactionId', positionUpdate.transactionId)
-
-    PositionDoUpdateCmd cmd2 = new PositionDoUpdateCmd(broker: broker, product: product, timeslot: timeslot, relativeChange: 1.0)
-    assertTrue(cmd2.validate())
-    def positionUpdate2 = accountingService.processPositionUpdate(cmd2)
-    //assertEquals(2, PositionUpdate.count())
-    assertNotNull(positionUpdate2.transactionId)
-  }
-
-
-//  void testPublishCustomersAvailable() {
-//    competition.current = true
-//    competition.save()
-//    assertEquals('testCustomer', accountingService.publishCustomersAvailable().first().name)
-//
-//    competition.current = false
-//    competition.save()
-//    assertEquals([], accountingService.publishCustomersAvailable())
-//
-//  }
-
-//  void testPublishTariffList() {
-//
-//    //No tariffs -> empty list
-//    assertEquals([], accountingService.publishTariffList())
-//
-//    competition.current = true
-//    competition.save()
-//    tariff.delete() //delete tariff generated in setUp() method
-//    assertEquals([], accountingService.publishTariffList())
-//    Tariff tariff1 = new Tariff(transactionId: 'someTransactionId1', competition: competition, broker: broker, tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 1.0, earlyExitFee: 1.0, baseFee: 1.0)
-//    tariff1.setFlatPowerConsumptionPrice(9.0)
-//    tariff1.setFlatPowerProductionPrice(11.0)
-//    assertTrue(tariff1.validate() && tariff1.save())
-//
-//    //One tariff in one active competition
-//    def tariffList = accountingService.publishTariffList()
-//    assertEquals(1, tariffList.size())
-//    assertEquals(TariffState.Published, tariffList.first().tariffState)
-//    assertEquals('someTransactionId1', tariffList.first().transactionId)
-//    assertNull(tariffList.first().parent)
-//
-//    Tariff tariff2 = new Tariff(transactionId: 'someTransactionId2', competition: competition, broker: broker, tariffState: TariffState.Published, isDynamic: false, isNegotiable: false, latest: true, signupFee: 100.0, earlyExitFee: 100.0, baseFee: 100.0)
-//    tariff2.setFlatPowerConsumptionPrice(90.0)
-//    tariff2.setFlatPowerProductionPrice(110.0)
-//    assertTrue(tariff2.validate() && tariff2.save())
-//
-//    tariffList = accountingService.publishTariffList()
-//    assertEquals(2, tariffList.size())
-//    assertEquals(1, tariffList.findAll {it.transactionId == 'someTransactionId1'}.size())
-//    assertEquals(1, tariffList.findAll {it.transactionId == 'someTransactionId2'}.size())
-//
-//    tariff1.tariffState = TariffState.Revoked
-//    tariff1.save()
-//
-//    tariffList = accountingService.publishTariffList()
-//    assertEquals(1, tariffList.size())
-//    assertEquals('someTransactionId2', tariffList.first().transactionId)
-//
-//    tariff2.latest = false
-//    tariff2.save()
-//
-//    assertEquals([], accountingService.publishTariffList())
-//
-//    tariff2.latest = true
-//    tariff2.save()
-//    assertEquals(1, tariffList.size())
-//
-//    competition.current = false
-//    competition.save()
-//
-//    assertEquals([], accountingService.publishTariffList())
-//  }
-
-
-  // this is incorrect.
-//  void testProcessTariffPublished() {
-//    tariff.delete() //delete tariff automatically generated in setUp() method
-//    def contractStartDate = new DateTime()
-//    def contractEndDate = new DateTime()
-//    TariffDoPublishCmd cmd = new TariffSpecification()
-//    shouldFail(TariffPublishException) {
-//      accountingService.processTariffPublished(cmd)
-//    }
-//    cmd.id = 'testId'
-//    cmd.competition = competition
-//    cmd.broker = broker
-//    cmd.isDynamic = false
-//    cmd.isNegotiable = false
-//    cmd.signupFee = 10.0
-//    cmd.earlyExitFee = 20.0
-//    cmd.baseFee = 30.0
-//    cmd.changeLeadTime = 1
-//    cmd.contractStartDate = contractStartDate
-//    cmd.contractEndDate = contractEndDate
-//    cmd.minimumContractRuntime = 1
-//    cmd.maximumContractRuntime = 10
-//    cmd.powerConsumptionThreshold = 100.0
-//    cmd.powerConsumptionSurcharge = 10.0
-//    cmd.powerProductionThreshold = 88.0
-//    cmd.powerProductionSurcharge = 888.0
-//
-//    for (i in 0..23) {
-//      cmd."powerConsumptionPrice$i" = (i + 1.0)
-//      cmd."powerProductionPrice$i" = (i + 9.0)
-//    }
-//
-//    assertNotNull(accountingService.processTariffPublished(cmd))
-//
-//    assertEquals(1, Tariff.count())
-//    def tariff1 = Tariff.get('testId')
-//    assertNotNull(tariff1)
-//    assertNull(tariff1.parent)
-//    assertEquals(tariff1.competition, competition)
-//    assertEquals(tariff1.broker, broker)
-//    assertFalse(tariff1.isDynamic)
-//    assertFalse(tariff1.isNegotiable)
-//    assertEquals(10.0, tariff1.signupFee)
-//    assertEquals(20.0, tariff1.earlyExitFee)
-//    assertEquals(30.0, tariff1.baseFee)
-//    assertEquals(1, tariff1.changeLeadTime)
-//    assertEquals(contractStartDate, tariff1.contractStartDate)
-//    assertEquals(contractEndDate, tariff1.contractEndDate)
-//    assertEquals(1, tariff1.minimumContractRuntime)
-//    assertEquals(10, tariff1.maximumContractRuntime)
-//    assertEquals(100.0, tariff1.powerConsumptionThreshold)
-//    assertEquals(10.0, tariff1.powerConsumptionSurcharge)
-//    assertEquals(88.0, tariff1.powerProductionThreshold)
-//    assertEquals(888.0, tariff1.powerProductionSurcharge)
-//    for (i in 0..23) {
-//      assertEquals((i + 1.0), tariff1."powerConsumptionPrice$i")
-//      assertEquals((i + 9.0), tariff1."powerProductionPrice$i")
-//    }
-//  }
-
 }
