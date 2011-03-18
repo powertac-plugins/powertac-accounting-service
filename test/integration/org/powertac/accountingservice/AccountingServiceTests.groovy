@@ -55,9 +55,9 @@ class AccountingServiceTests extends GroovyTestCase
     timeService.setCurrentTime(now)
     
     // set up brokers and customers
-    bob = new Broker(userName: "Bob")
+    bob = new Broker(username: "Bob")
     assert (bob.save())
-    jim = new Broker(userName: "Jim")
+    jim = new Broker(username: "Jim")
     assert (jim.save())
     customer1 = new CustomerInfo(name: 'downtown',
         customerType: CustomerType.CustomerHousehold, 

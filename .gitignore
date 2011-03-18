@@ -13,6 +13,7 @@ target/
 ehthumbs.db
 Icon?
 Thumbs.db
+*.log
 
 # Compiled source
 *.class
