@@ -21,9 +21,9 @@ import java.util.List
 import org.joda.time.DateTime
 import org.joda.time.Instant
 import org.joda.time.DateTimeZone
+import org.powertac.common.AbstractCustomer
 import org.powertac.common.Broker
 import org.powertac.common.TimeService
-import org.powertac.common.CustomerInfo
 import org.powertac.common.Tariff
 import org.powertac.common.TariffSpecification
 import org.powertac.common.TariffSubscription
@@ -66,6 +66,7 @@ class TariffMarketService
   void afterPropertiesSet ()
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
+
   }
 
   // ----------------- Broker message API --------------------
@@ -98,7 +99,7 @@ class TariffMarketService
                               status: TariffStatus.Status.invalidTariff,
                               message: "spec: ${spec.errors.allErrors}")
     }
-    spec.save()
+    spec.save(flush:true)
     Tariff tariff = new Tariff(tariffSpec: spec)
     tariff.init()
     if (!tariff.validate()) {
@@ -111,9 +112,9 @@ class TariffMarketService
     }
     else {
       log.info("new tariff ${spec.id}")
-      tariff.save()
+      tariff.save(flush:true)
       broker.addToTariffs(tariff)
-      broker.save()
+      broker.save(flush:true)
       newTariffs << tariff
       TariffTransaction pub = 
           accountingService.addTariffTransaction(TariffTransactionType.PUBLISH,
@@ -137,7 +138,7 @@ class TariffMarketService
     else {
       // update expiration date
       tariff.expiration = update.newExpiration
-      tariff.save()
+      tariff.save(flush:true)
       log.info("Tariff ${update.tariffId} expires at ${new DateTime(tariff.expiration, DateTimeZone.UTC).toString()}")
     }
     return success(update)
@@ -154,7 +155,7 @@ class TariffMarketService
       return result
     else {
       tariff.state = Tariff.State.KILLED
-      tariff.save()
+      tariff.save(flush:true)
       log.info("Revoke tariff ${update.tariffId}")
       // The actual revocation processing is delegated to the Customer,
       // who is obligated to call getRevokedSubscriptions periodically.
@@ -185,7 +186,7 @@ class TariffMarketService
     if (tariff == null)
       return result
     else if (tariff.addHourlyCharge(update.payload, update.rateId)) {
-      tariff.save()
+      tariff.save(flush:true)
       // TODO - do we broadcast this?
       //broadcast << update
       return success(update)
@@ -239,22 +240,22 @@ class TariffMarketService
    */
   @Override
   TariffSubscription subscribeToTariff (Tariff tariff,
-                                        CustomerInfo customer, 
+                                        AbstractCustomer customer, 
                                         int customerCount)
   {
     if (tariff.isExpired())
       return null
     
-    TariffSubscription sub = TariffSubscription.findByTariffAndCustomerInfo(tariff, customer)
+    TariffSubscription sub = TariffSubscription.findByTariffAndAbstractCustomer(tariff, customer)
     if (sub == null) {
-      sub = new TariffSubscription(customerInfo: customer,
+      sub = new TariffSubscription(AbstractCustomer: customer,
                                    tariff: tariff)
       // temp fix
       sub.accountingService = accountingService
     }
     sub.subscribe(customerCount)
     //tariff.addToSubscriptions(sub)
-    sub.save()
+    sub.save(flush:true)
     return sub
   }
 
@@ -273,9 +274,9 @@ class TariffMarketService
    * revoked and have non-zero committed customers.
    */
   @Override
-  public List<TariffSubscription> getRevokedSubscriptionList (CustomerInfo customer)
+  public List<TariffSubscription> getRevokedSubscriptionList (AbstractCustomer customer)
   {
-    return TariffSubscription.findAllByCustomerInfo(customer).
+    return TariffSubscription.findAllByAbstractCustomer(customer).
         findAll { sub ->
            sub.tariff.state == Tariff.State.KILLED && sub.customersCommitted > 0 }
   }
@@ -296,14 +297,14 @@ class TariffMarketService
       log.error("failed to validate default tariff spec ${newSpec}")
       return false
     }
-    newSpec.save()
+    newSpec.save(flush:true)
     Tariff tariff = new Tariff(tariffSpec: newSpec)
     tariff.init()
     if (!tariff.validate()) {
       log.error("failed to validate default tariff ${newSpec}")
       return false
     }
-    if (!tariff.save()) {
+    if (!tariff.save(flush:true)) {
       log.error("failed to save default tariff ${newSpec}")
       return false
     }

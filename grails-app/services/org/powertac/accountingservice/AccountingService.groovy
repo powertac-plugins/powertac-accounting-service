@@ -16,7 +16,6 @@
 
 package org.powertac.accountingservice
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import org.joda.time.Instant;
@@ -65,14 +64,14 @@ class AccountingService
   @Synchronized
   public TariffTransaction addTariffTransaction(TariffTransactionType txType,
                                                 Tariff tariff,
-                                                CustomerInfo customer,
+                                                AbstractCustomer customer,
                                                 int customerCount,
                                                 BigDecimal quantity,
                                                 BigDecimal charge)
   {
     TariffTransaction ttx = new TariffTransaction(broker: tariff.broker,
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
-            customerInfo:customer, customerCount:customerCount,
+            AbstractCustomer:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
     ttx.id = idCount++
     assert ttx.save()
