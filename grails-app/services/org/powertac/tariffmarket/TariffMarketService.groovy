@@ -246,9 +246,9 @@ class TariffMarketService
     if (tariff.isExpired())
       return null
     
-    TariffSubscription sub = TariffSubscription.findByTariffAndAbstractCustomer(tariff, customer)
+    TariffSubscription sub = TariffSubscription.findByTariffAndCustomer(tariff, customer)
     if (sub == null) {
-      sub = new TariffSubscription(AbstractCustomer: customer,
+      sub = new TariffSubscription(customer: customer,
                                    tariff: tariff)
       // temp fix
       sub.accountingService = accountingService
@@ -276,7 +276,7 @@ class TariffMarketService
   @Override
   public List<TariffSubscription> getRevokedSubscriptionList (AbstractCustomer customer)
   {
-    return TariffSubscription.findAllByAbstractCustomer(customer).
+    return TariffSubscription.findAllByCustomer(customer).
         findAll { sub ->
            sub.tariff.state == Tariff.State.KILLED && sub.customersCommitted > 0 }
   }

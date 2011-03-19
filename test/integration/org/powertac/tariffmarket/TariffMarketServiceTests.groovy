@@ -33,13 +33,14 @@ import org.powertac.common.HourlyCharge
 import org.powertac.common.enumerations.PowerType
 import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.TariffTransactionType
-import org.powertac.common.CustomerInfo
+import org.powertac.common.AbstractCustomer
 import org.powertac.common.Rate
 import org.powertac.common.Tariff
 import org.powertac.common.interfaces.CompetitionControl
 import org.powertac.common.interfaces.NewTariffListener
 import org.powertac.common.TariffTransaction
 import org.powertac.common.TariffSpecification
+import org.powertac.common.TariffSubscription
 import org.powertac.common.msg.TariffExpire
 import org.powertac.common.msg.TariffRevoke
 import org.powertac.common.msg.TariffStatus
@@ -440,8 +441,8 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertNotNull("third tariff found", tc3)
     
     // create two customers who can subscribe
-    def charley = new CustomerInfo(name:"Charley", customerType: CustomerType.CustomerHousehold)
-    def sally = new CustomerInfo(name:"Sally", customerType: CustomerType.CustomerHousehold)
+    def charley = new AbstractCustomer(name:"Charley", customerType: CustomerType.CustomerHousehold)
+    def sally = new AbstractCustomer(name:"Sally", customerType: CustomerType.CustomerHousehold)
     assert charley.save()
     assert sally.save()
     
@@ -459,6 +460,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     def ss3 = tariffMarketService.subscribeToTariff(tc3, sally, 42)
     assertEquals("3 customers for cs1", 3, cs1.customersCommitted)
     assertEquals("42 customers for ss3", 42, ss3.customersCommitted)
+    assertEquals("Charley has 3 subscriptions", 3, TariffSubscription.findAllByCustomer(charley).size())
     
     // forward an hour, revoke the second tariff
     timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)

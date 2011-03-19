@@ -24,7 +24,7 @@ import org.joda.time.Duration
 import org.joda.time.Instant
 
 import org.powertac.common.Broker
-import org.powertac.common.CustomerInfo
+import org.powertac.common.AbstractCustomer
 import org.powertac.common.MarketTransaction
 import org.powertac.common.Product
 import org.powertac.common.Rate
@@ -44,7 +44,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
   
   Tariff tariff
   Broker broker
-  CustomerInfo customerInfo
+  AbstractCustomer customer
   DateTime now
   int idCount = 0
 
@@ -65,12 +65,12 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     tariff = new Tariff(tariffSpec: tariffSpec)
     tariff.init()
     assert(tariff.save())
-    customerInfo = new CustomerInfo(name:"Charley", customerType: CustomerType.CustomerHousehold)
-    if (!customerInfo.validate()) {
-      customerInfo.errors.each { println it.toString() }
-      fail("Could not save customerInfo")
+    customer = new AbstractCustomer(name:"Charley", customerType: CustomerType.CustomerHousehold)
+    if (!customer.validate()) {
+      customer.errors.each { println it.toString() }
+      fail("Could not save customer")
     }
-    assert(customerInfo.save())
+    assert(customer.save())
   }
 
   protected void tearDown() 
@@ -83,9 +83,9 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
   void testSimpleSub ()
   {
     TariffSubscription ts = 
-        tariffMarketService.subscribeToTariff(tariff, customerInfo, 3)
+        tariffMarketService.subscribeToTariff(tariff, customer, 3)
     assertNotNull("non-null subscription", ts)
-    assertEquals("correct customer", customerInfo, ts.customerInfo)
+    assertEquals("correct customer", customer, ts.customer)
     assertEquals("correct tariff", tariff, ts.tariff)
     assertEquals("correct customer count", 3, ts.customersCommitted)
   }
@@ -106,7 +106,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     tariff.save()
 
     TariffSubscription tsub = 
-      tariffMarketService.subscribeToTariff(tariff, customerInfo, 5)
+      tariffMarketService.subscribeToTariff(tariff, customer, 5)
     assertNotNull("non-null subscription", tsub)
     assertTrue("subscription saves", tsub.validate() && tsub.save())
     assertEquals("five customers committed", 5, tsub.customersCommitted)
@@ -137,7 +137,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     tariff.init()
     tariff.save()
     TariffSubscription tsub =
-        tariffMarketService.subscribeToTariff(tariff, customerInfo, 5)
+        tariffMarketService.subscribeToTariff(tariff, customer, 5)
     assertTrue("subscription saves", tsub.validate() && tsub.save())
 
     // move time forward 2 weeks, withdraw 2 customers
@@ -154,7 +154,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     Instant wk3 = new Instant(now.millis + TimeService.WEEK * 2 + TimeService.HOUR * 6)
     timeService.currentTime = wk3
     TariffSubscription tsub1 = 
-        tariffMarketService.subscribeToTariff(tariff, customerInfo, 4)
+        tariffMarketService.subscribeToTariff(tariff, customer, 4)
     assertEquals("same subscription", tsub, tsub1)
     tsub1.unsubscribe(1)
     txs = TariffTransaction.findAllByPostedTime(wk3)
@@ -188,7 +188,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
 
     // subscribe and consume in the first timeslot
     TariffSubscription tsub = 
-        tariffMarketService.subscribeToTariff(tariff, customerInfo, 4)
+        tariffMarketService.subscribeToTariff(tariff, customer, 4)
     assertTrue("subscription saved", tsub.validate() && tsub.save())
     assertEquals("four customers committed", 4, tsub.customersCommitted)
     tsub.usePower(24.4) // consumption
@@ -237,7 +237,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
 
     // subscribe and consume in the first timeslot
     TariffSubscription tsub = 
-        tariffMarketService.subscribeToTariff(tariff, customerInfo, 6)
+        tariffMarketService.subscribeToTariff(tariff, customer, 6)
     assertTrue("subscription saved", tsub.validate() && tsub.save())
     assertEquals("six customers committed", 6, tsub.customersCommitted)
     tsub.usePower(28.8) // consumption
@@ -276,7 +276,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
 
     // subscribe and consume in the first timeslot
     TariffSubscription tsub = 
-        tariffMarketService.subscribeToTariff(tariff, customerInfo, 4)
+        tariffMarketService.subscribeToTariff(tariff, customer, 4)
     assertTrue("subscription saved", tsub.validate() && tsub.save())
     assertEquals("four customers committed", 4, tsub.customersCommitted)
     tsub.usePower(-244.6) // production

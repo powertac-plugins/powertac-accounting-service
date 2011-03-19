@@ -30,9 +30,9 @@ class AccountingServiceTests extends GroovyTestCase
   def timeService // dependency injection
   def accountingService
 
-  CustomerInfo customer1
-  CustomerInfo customer2
-  CustomerInfo customer3
+  AbstractCustomer customer1
+  AbstractCustomer customer2
+  AbstractCustomer customer3
   Tariff tariffB1
   Tariff tariffB2
   Tariff tariffJ1
@@ -59,15 +59,15 @@ class AccountingServiceTests extends GroovyTestCase
     assert (bob.save())
     jim = new Broker(username: "Jim")
     assert (jim.save())
-    customer1 = new CustomerInfo(name: 'downtown',
+    customer1 = new AbstractCustomer(name: 'downtown',
         customerType: CustomerType.CustomerHousehold, 
         upperPowerCap: 100.0, lowerPowerCap: 10.0)
     assert(customer1.save())
-    customer2 = new CustomerInfo(name: 'suburbs',
+    customer2 = new AbstractCustomer(name: 'suburbs',
         customerType: CustomerType.CustomerHousehold, 
         upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0)
     assert(customer2.save())
-    customer3 = new CustomerInfo(name: 'exurbs',
+    customer3 = new AbstractCustomer(name: 'exurbs',
         customerType: CustomerType.CustomerHousehold, 
         upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 10.0,
         sunToPowerConversion: 200.0)
