@@ -99,7 +99,7 @@ class TariffMarketService
                               status: TariffStatus.Status.invalidTariff,
                               message: "spec: ${spec.errors.allErrors}")
     }
-    spec.save(flush:true)
+    spec.save()
     Tariff tariff = new Tariff(tariffSpec: spec)
     tariff.init()
     if (!tariff.validate()) {
@@ -112,9 +112,9 @@ class TariffMarketService
     }
     else {
       log.info("new tariff ${spec.id}")
-      tariff.save(flush:true)
+      tariff.save()
       broker.addToTariffs(tariff)
-      broker.save(flush:true)
+      broker.save()
       newTariffs << tariff
       TariffTransaction pub = 
           accountingService.addTariffTransaction(TariffTransactionType.PUBLISH,
@@ -138,7 +138,7 @@ class TariffMarketService
     else {
       // update expiration date
       tariff.expiration = update.newExpiration
-      tariff.save(flush:true)
+      tariff.save()
       log.info("Tariff ${update.tariffId} expires at ${new DateTime(tariff.expiration, DateTimeZone.UTC).toString()}")
     }
     return success(update)
@@ -155,7 +155,7 @@ class TariffMarketService
       return result
     else {
       tariff.state = Tariff.State.KILLED
-      tariff.save(flush:true)
+      tariff.save()
       log.info("Revoke tariff ${update.tariffId}")
       // The actual revocation processing is delegated to the Customer,
       // who is obligated to call getRevokedSubscriptions periodically.
@@ -186,7 +186,7 @@ class TariffMarketService
     if (tariff == null)
       return result
     else if (tariff.addHourlyCharge(update.payload, update.rateId)) {
-      tariff.save(flush:true)
+      tariff.save()
       // TODO - do we broadcast this?
       //broadcast << update
       return success(update)
@@ -255,7 +255,7 @@ class TariffMarketService
     }
     sub.subscribe(customerCount)
     //tariff.addToSubscriptions(sub)
-    sub.save(flush:true)
+    sub.save()
     return sub
   }
 
@@ -297,14 +297,14 @@ class TariffMarketService
       log.error("failed to validate default tariff spec ${newSpec}")
       return false
     }
-    newSpec.save(flush:true)
+    newSpec.save()
     Tariff tariff = new Tariff(tariffSpec: newSpec)
     tariff.init()
     if (!tariff.validate()) {
       log.error("failed to validate default tariff ${newSpec}")
       return false
     }
-    if (!tariff.save(flush:true)) {
+    if (!tariff.save()) {
       log.error("failed to save default tariff ${newSpec}")
       return false
     }

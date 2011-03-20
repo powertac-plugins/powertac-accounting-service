@@ -25,6 +25,7 @@ import org.joda.time.Instant
 
 import org.powertac.common.Broker
 import org.powertac.common.AbstractCustomer
+import org.powertac.common.CustomerInfo
 import org.powertac.common.MarketTransaction
 import org.powertac.common.Product
 import org.powertac.common.Rate
@@ -44,12 +45,15 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
   
   Tariff tariff
   Broker broker
+  CustomerInfo customerInfo
   AbstractCustomer customer
   DateTime now
   int idCount = 0
 
   protected void setUp()
   {
+	TariffSpecification.list()*.delete()
+	Tariff.list()*.delete()
     super.setUp()
     broker = new Broker(username: "Joe")
     broker.save()
@@ -65,12 +69,21 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     tariff = new Tariff(tariffSpec: tariffSpec)
     tariff.init()
     assert(tariff.save())
-    customer = new AbstractCustomer(name:"Charley", customerType: CustomerType.CustomerHousehold)
-    if (!customer.validate()) {
-      customer.errors.each { println it.toString() }
+    customerInfo = new CustomerInfo(name:"Charley", customerType: CustomerType.CustomerHousehold)
+    if (!customerInfo.validate()) {
+      customerInfo.errors.each { println it.toString() }
       fail("Could not save customer")
     }
-    assert(customer.save())
+    assert(customerInfo.save())
+	
+	customer = new AbstractCustomer(customerInfo: customerInfo)
+	customer.init()
+	if (!customer.validate()) {
+	  customer.errors.each { println it.toString() }
+	  fail("Could not save customer")
+	}
+	assert(customer.save())
+	
   }
 
   protected void tearDown() 

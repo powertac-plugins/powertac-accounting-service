@@ -34,6 +34,7 @@ import org.powertac.common.enumerations.PowerType
 import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.TariffTransactionType
 import org.powertac.common.AbstractCustomer
+import org.powertac.common.CustomerInfo
 import org.powertac.common.Rate
 import org.powertac.common.Tariff
 import org.powertac.common.interfaces.CompetitionControl
@@ -69,6 +70,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     super.setUp()
     TariffSpecification.list()*.delete()
     Tariff.list()*.delete()
+	tariffMarketService.registrations = []
     tariffMarketService.newTariffs = []
     start = new DateTime(2011, 1, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
     timeService.setCurrentTime(start)
@@ -441,11 +443,18 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertNotNull("third tariff found", tc3)
     
     // create two customers who can subscribe
-    def charley = new AbstractCustomer(name:"Charley", customerType: CustomerType.CustomerHousehold)
-    def sally = new AbstractCustomer(name:"Sally", customerType: CustomerType.CustomerHousehold)
-    assert charley.save()
-    assert sally.save()
-    
+    def charleyInfo = new CustomerInfo(name:"Charley", customerType: CustomerType.CustomerHousehold)
+    def sallyInfo = new CustomerInfo(name:"Sally", customerType: CustomerType.CustomerHousehold)
+    assert charleyInfo.save()
+    assert sallyInfo.save()
+	
+	def charley = new AbstractCustomer(customerInfo: charleyInfo)
+	def sally = new AbstractCustomer(customerInfo: sallyInfo)
+    charley.init()
+	sally.init()
+	assert charley.save()
+	assert sally.save()
+	
     // make sure we have three active tariffs
     def tclist = tariffMarketService.getActiveTariffList(PowerType.CONSUMPTION)
     assertEquals("3 consumption tariffs", 3, tclist.size())

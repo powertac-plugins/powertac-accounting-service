@@ -64,14 +64,14 @@ class AccountingService
   @Synchronized
   public TariffTransaction addTariffTransaction(TariffTransactionType txType,
                                                 Tariff tariff,
-                                                AbstractCustomer customer,
+                                                CustomerInfo customer,
                                                 int customerCount,
                                                 BigDecimal quantity,
                                                 BigDecimal charge)
   {
     TariffTransaction ttx = new TariffTransaction(broker: tariff.broker,
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
-            AbstractCustomer:customer, customerCount:customerCount,
+            CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
     ttx.id = idCount++
     assert ttx.save()
