@@ -20,6 +20,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>.link_to_grails_plugins</name>
+			<type>2</type>
+			<locationURI>GRAILS_ROOT/1.3.7/projects/powertac-accounting-service/plugins</locationURI>
+		</link>
+		<link>
 			<name>code-coverage-1.2-grails-app-i18n</name>
 			<type>2</type>
 			<locationURI>GRAILS_ROOT/1.3.7/projects/powertac-accounting-service/plugins/code-coverage-1.2/grails-app/i18n</locationURI>
