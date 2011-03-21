@@ -30,9 +30,9 @@ class AccountingServiceTests extends GroovyTestCase
   def timeService // dependency injection
   def accountingService
 
-  CustomerInfo customer1
-  CustomerInfo customer2
-  CustomerInfo customer3
+  CustomerInfo customerInfo1
+  CustomerInfo customerInfo2
+  CustomerInfo customerInfo3
   Tariff tariffB1
   Tariff tariffB2
   Tariff tariffJ1
@@ -55,25 +55,26 @@ class AccountingServiceTests extends GroovyTestCase
     timeService.setCurrentTime(now)
     
     // set up brokers and customers
-    bob = new Broker(userName: "Bob")
+    bob = new Broker(username: "Bob")
     assert (bob.save())
-    jim = new Broker(userName: "Jim")
+    jim = new Broker(username: "Jim")
     assert (jim.save())
-    customer1 = new CustomerInfo(name: 'downtown',
-        customerType: CustomerType.CustomerHousehold, 
-        upperPowerCap: 100.0, lowerPowerCap: 10.0)
-    assert(customer1.save())
-    customer2 = new CustomerInfo(name: 'suburbs',
-        customerType: CustomerType.CustomerHousehold, 
-        upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 20.0)
-    assert(customer2.save())
-    customer3 = new CustomerInfo(name: 'exurbs',
-        customerType: CustomerType.CustomerHousehold, 
-        upperPowerCap: 100.0, lowerPowerCap: 10.0, carbonEmissionRate: 10.0,
-        sunToPowerConversion: 200.0)
-    assert(customer3.save())
+	
+	customerInfo1 = new CustomerInfo(name: 'downtown',
+        customerType: CustomerType.CustomerHousehold, powerType: PowerType.CONSUMPTION)
+	assert(customerInfo1.save())
+	
+	customerInfo2 = new CustomerInfo(name: 'suburbs',
+		customerType: CustomerType.CustomerHousehold, powerType: PowerType.CONSUMPTION)
+	assert(customerInfo2.save())
+	
 
-    // set up tariffs - tariff1 for consumption, tariff2 for production
+	customerInfo3 = new CustomerInfo(name: 'exburbs',
+		customerType: CustomerType.CustomerHousehold, powerType: PowerType.CONSUMPTION)
+	assert(customerInfo3.save())
+
+	
+	// set up tariffs - tariff1 for consumption, tariff2 for production
     Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
     def tariffSpec = new TariffSpecification(brokerId: bob.id,
                                              expiration: exp, 
@@ -137,9 +138,9 @@ class AccountingServiceTests extends GroovyTestCase
   void testTariffTransaction ()
   {
     accountingService.addTariffTransaction(TariffTransactionType.SIGNUP,
-      tariffB1, customer1, 0, 0.0, 42.1)
+      tariffB1, customerInfo1, 0, 0.0, 42.1)
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
-      tariffB1, customer2, 7, 77.0, 7.7)
+      tariffB1, customerInfo2, 7, 77.0, 7.7)
     assertEquals("correct number in list", 2, accountingService.pendingTransactions.size())
     assertEquals("correct number in db", 2, TariffTransaction.count())
     def ttx = TariffTransaction.get(0)
@@ -154,14 +155,14 @@ class AccountingServiceTests extends GroovyTestCase
   {
     // some usage for Bob
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
-      tariffB1, customer1, 7, 77.0, 7.7)
+      tariffB1, customerInfo1, 7, 77.0, 7.7)
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
-      tariffB1, customer2, 6, 83.0, 8.0)
+      tariffB1, customerInfo2, 6, 83.0, 8.0)
     accountingService.addTariffTransaction(TariffTransactionType.PRODUCE,
-      tariffB2, customer3, 3, -55.0, -4.5)
+      tariffB2, customerInfo3, 3, -55.0, -4.5)
     // some usage for Jim
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
-      tariffJ1, customer2, 12, 120.0, 8.4)
+      tariffJ1, customerInfo2, 12, 120.0, 8.4)
     assertEquals("correct net load for Bob", (77.0 + 83.0 - 55.0),
                   accountingService.getCurrentNetLoad(bob), 1e-6)
     assertEquals("correct net load for Jim", 120.0,
@@ -202,13 +203,13 @@ class AccountingServiceTests extends GroovyTestCase
         Timeslot.findBySerialNumber(5), -20.0, -0.2)
     // tariff transactions
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
-        tariffB1, customer1, 7, 77.0, 7.7)
+        tariffB1, customerInfo1, 7, 77.0, 7.7)
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
-        tariffB1, customer2, 6, 83.0, 8.0)
+        tariffB1, customerInfo2, 6, 83.0, 8.0)
     accountingService.addTariffTransaction(TariffTransactionType.PRODUCE,
-        tariffB2, customer3, 3, -55.0, -4.5)
+        tariffB2, customerInfo3, 3, -55.0, -4.5)
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
-        tariffJ1, customer2, 12, 120.0, 8.4)
+        tariffJ1, customerInfo2, 12, 120.0, 8.4)
     assertEquals("correct number in list", 9, accountingService.pendingTransactions.size())
     // activate and check cash and market positions
     accountingService.activate(timeService.currentTime, 3)

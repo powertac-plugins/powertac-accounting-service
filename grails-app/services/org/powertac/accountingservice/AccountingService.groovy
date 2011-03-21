@@ -16,7 +16,6 @@
 
 package org.powertac.accountingservice
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import org.joda.time.Instant;
@@ -72,7 +71,7 @@ class AccountingService
   {
     TariffTransaction ttx = new TariffTransaction(broker: tariff.broker,
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
-            customerInfo:customer, customerCount:customerCount,
+            CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
     ttx.id = idCount++
     assert ttx.save()
