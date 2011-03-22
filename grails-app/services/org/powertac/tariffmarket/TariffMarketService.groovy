@@ -39,6 +39,7 @@ import org.powertac.common.msg.TariffUpdate
 import org.powertac.common.msg.VariableRateUpdate
 import org.powertac.common.enumerations.PowerType
 import org.powertac.common.enumerations.TariffTransactionType
+import org.powertac.common.interfaces.BrokerProxy
 
 class TariffMarketService
     implements org.powertac.common.interfaces.TariffMarket,
@@ -50,6 +51,7 @@ class TariffMarketService
   def timeService
   Accounting accountingService
   CompetitionControl competitionControlService
+  BrokerProxy brokerProxyService
   
   def defaultTariff = [:]
   def newTariffs = []
@@ -223,7 +225,7 @@ class TariffMarketService
       // time to publish
       log.info "publishing ${newTariffs.size()} new tariffs"
       registrations*.publishNewTariffs(newTariffs)
-      // TODO - push new tariffs out to brokers
+      brokerProxyService?.broadcastMessages(newTariffs)
       newTariffs = []
     }
   }
