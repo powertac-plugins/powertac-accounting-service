@@ -59,22 +59,18 @@ class AccountingServiceTests extends GroovyTestCase
     assert (bob.save())
     jim = new Broker(username: "Jim")
     assert (jim.save())
-	
-	customerInfo1 = new CustomerInfo(name: 'downtown',
+
+    customerInfo1 = new CustomerInfo(name: 'downtown',
         customerType: CustomerType.CustomerHousehold, powerType: PowerType.CONSUMPTION)
-	assert(customerInfo1.save())
-	
-	customerInfo2 = new CustomerInfo(name: 'suburbs',
-		customerType: CustomerType.CustomerHousehold, powerType: PowerType.CONSUMPTION)
-	assert(customerInfo2.save())
-	
+    assert(customerInfo1.save())
+    customerInfo2 = new CustomerInfo(name: 'suburbs',
+        customerType: CustomerType.CustomerHousehold, powerType: PowerType.CONSUMPTION)
+    assert(customerInfo2.save())
+    customerInfo3 = new CustomerInfo(name: 'exburbs',
+        customerType: CustomerType.CustomerHousehold, powerType: PowerType.CONSUMPTION)
+    assert(customerInfo3.save())
 
-	customerInfo3 = new CustomerInfo(name: 'exburbs',
-		customerType: CustomerType.CustomerHousehold, powerType: PowerType.CONSUMPTION)
-	assert(customerInfo3.save())
-
-	
-	// set up tariffs - tariff1 for consumption, tariff2 for production
+    // set up tariffs - tariff1 for consumption, tariff2 for production
     Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
     def tariffSpec = new TariffSpecification(brokerId: bob.id,
                                              expiration: exp, 

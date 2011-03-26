@@ -16,7 +16,6 @@
 package org.powertac.tariffmarket
 
 import grails.test.GrailsUnitTestCase
-import groovy.mock.interceptor.MockFor
 
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
@@ -41,7 +40,7 @@ import org.powertac.common.enumerations.TariffTransactionType
 class TariffSubscriptionTests extends GrailsUnitTestCase 
 {
   def timeService  // autowire the time service
-  def tariffMarketService // autowire the market
+  def tariffMarketService = 'tariffMarketService' // autowire the market
   
   Tariff tariff
   Broker broker
@@ -52,8 +51,8 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
 
   protected void setUp()
   {
-	TariffSpecification.list()*.delete()
-	Tariff.list()*.delete()
+    TariffSpecification.list()*.delete()
+    Tariff.list()*.delete()
     super.setUp()
     broker = new Broker(username: "Joe")
     broker.save()
@@ -75,15 +74,14 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
       fail("Could not save customer")
     }
     assert(customerInfo.save())
-	
-	customer = new AbstractCustomer(customerInfo: customerInfo)
-	customer.init()
-	if (!customer.validate()) {
-	  customer.errors.each { println it.toString() }
-	  fail("Could not save customer")
-	}
-	assert(customer.save())
-	
+
+    customer = new AbstractCustomer(customerInfo: customerInfo)
+    customer.init()
+    if (!customer.validate()) {
+      customer.errors.each { println it.toString() }
+      fail("Could not save customer")
+    }
+    assert(customer.save())
   }
 
   protected void tearDown() 
