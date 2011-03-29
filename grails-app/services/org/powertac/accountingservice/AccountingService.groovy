@@ -142,7 +142,7 @@ class AccountingService
   {
     ensureCash(tx.broker)
     CashPosition cash = tx.broker.cash
-    cash.deposit(-tx.price)
+    cash.deposit(-tx.price * Math.abs(tx.quantity))
     cash.addToMarketTransactions(tx)
     MarketPosition mkt = 
         MarketPosition.findByBrokerAndTimeslot(tx.broker, tx.timeslot)
