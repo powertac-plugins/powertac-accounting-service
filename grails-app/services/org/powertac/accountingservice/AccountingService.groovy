@@ -129,7 +129,7 @@ class AccountingService
   // process a tariff transaction
   private void processTransaction (TariffTransaction tx)
   {
-    ensureCash(tx.broker)
+    //ensureCash(tx.broker)
     CashPosition cash = tx.broker.cash
     cash.deposit tx.charge
     cash.addToTariffTransactions(tx)
@@ -140,7 +140,7 @@ class AccountingService
   // process a market transaction
   private void processTransaction (MarketTransaction tx)
   {
-    ensureCash(tx.broker)
+    //ensureCash(tx.broker)
     CashPosition cash = tx.broker.cash
     cash.deposit(-tx.price * Math.abs(tx.quantity))
     cash.addToMarketTransactions(tx)
@@ -160,11 +160,11 @@ class AccountingService
   }
   
   // make sure the broker has a non-null cash position
-  private void ensureCash (Broker broker)
-  {
-    if (broker.cash == null) {
-      broker.cash = new CashPosition(broker: broker)
-      broker.save()     
-    }
-  }
+  //private void ensureCash (Broker broker)
+  //{
+  //  if (broker.cash == null) {
+  //    broker.cash = new CashPosition(broker: broker)
+  //    broker.save()     
+  //  }
+  //}
 }
