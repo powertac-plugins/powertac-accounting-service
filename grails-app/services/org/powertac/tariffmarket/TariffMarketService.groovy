@@ -230,7 +230,7 @@ class TariffMarketService
     }
   }
 
-    /**
+  /**
    * Subscribes a block of Customers from a single Customer model to
    * this Tariff, as long as this Tariff has not expired. If the
    * subscription succeeds, then the TariffSubscription instance is
