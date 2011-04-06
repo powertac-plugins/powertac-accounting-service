@@ -46,7 +46,7 @@ class AccountingServiceTests extends GroovyTestCase
     
     // clean up from other tests
     TariffTransaction.list()*.delete()
-    accountingService.idCount = 0
+    //accountingService.idCount = 0
     accountingService.pendingTransactions = []
     Timeslot.list()*.delete()
     Broker.list()*.delete()
@@ -148,13 +148,13 @@ class AccountingServiceTests extends GroovyTestCase
       tariffB1, customerInfo2, 7, 77.0, 7.7)
     assertEquals("correct number in list", 2, accountingService.pendingTransactions.size())
     assertEquals("correct number in db", 2, TariffTransaction.count())
-    def ttx = TariffTransaction.get(0)
+    def ttx = TariffTransaction.get(1)
     assertNotNull("first ttx not null", ttx)
     assertEquals("correct charge id 0", 42.1, ttx.charge, 1e-6)
     Broker b1 = ttx.broker
     Broker b2 = Broker.get(bob.id)
     assertEquals("same broker", b1, b2)
-    ttx = TariffTransaction.get(1)
+    ttx = TariffTransaction.get(2)
     assertNotNull("second ttx not null", ttx)
     assertEquals("correct amount id 1", 77.0, ttx.quantity, 1e-6)
   }
@@ -186,14 +186,14 @@ class AccountingServiceTests extends GroovyTestCase
         Timeslot.findBySerialNumber(6), 43.0, 0.7)
     assertEquals("correct number in list", 2, accountingService.pendingTransactions.size())
     assertEquals("correct number in db", 2, MarketTransaction.count())
-    def mtx = MarketTransaction.get(0)
+    def mtx = MarketTransaction.get(1)
     assertNotNull("first mtx not null", mtx)
     assertEquals("correct timeslot id 0", 5, mtx.timeslot.serialNumber)
     assertEquals("correct price id 0", 45.0, mtx.price, 1e-6)
     Broker b1 = mtx.broker
     Broker b2 = Broker.get(bob.id)
     assertEquals("same broker", b1, b2)
-    mtx = MarketTransaction.get(1)
+    mtx = MarketTransaction.get(2)
     assertNotNull("second mtx not null", mtx)
     assertEquals("correct quantity id 1", 0.7, mtx.quantity, 1e-6)
   }

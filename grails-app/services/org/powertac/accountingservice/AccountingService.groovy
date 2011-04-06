@@ -42,7 +42,7 @@ class AccountingService
   def pendingTransactions = []
   
   // transaction ID counter
-  int idCount = 0
+  //int idCount = 0
 
   @Synchronized
   MarketTransaction addMarketTransaction (Broker broker,
@@ -55,7 +55,7 @@ class AccountingService
                                                   price: price,
                                                   quantity: quantity,
                                                   postedTime: timeService.currentTime)
-    mtx.id = idCount++
+    //mtx.id = idCount++
     assert mtx.save()
     pendingTransactions.add(mtx)
     return mtx
@@ -73,7 +73,7 @@ class AccountingService
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
             CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
-    ttx.id = idCount++
+    //ttx.id = idCount++
     assert ttx.save()
     pendingTransactions.add(ttx)
     return ttx
