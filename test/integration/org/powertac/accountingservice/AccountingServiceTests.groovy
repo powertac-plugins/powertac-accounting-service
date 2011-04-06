@@ -49,6 +49,7 @@ class AccountingServiceTests extends GroovyTestCase
     accountingService.idCount = 0
     accountingService.pendingTransactions = []
     Timeslot.list()*.delete()
+    Broker.list()*.delete()
 
     // set the clock
     def now = new DateTime(2011, 1, 26, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
@@ -72,7 +73,7 @@ class AccountingServiceTests extends GroovyTestCase
 
     // set up tariffs - tariff1 for consumption, tariff2 for production
     Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
-    def tariffSpec = new TariffSpecification(brokerId: bob.id,
+    def tariffSpec = new TariffSpecification(broker: bob,
                                              expiration: exp, 
                                              minDuration: TimeService.WEEK * 8,
                                              periodicPayment: 0.02)
@@ -81,7 +82,7 @@ class AccountingServiceTests extends GroovyTestCase
     tariffB1 = new Tariff(tariffSpec: tariffSpec)
     tariffB1.init()
     assert tariffB1.save()
-    tariffSpec = new TariffSpecification(brokerId: bob.id, 
+    tariffSpec = new TariffSpecification(broker: bob, 
                                          minDuration: TimeService.WEEK * 8,
                                          expiration: exp, powerType: PowerType.PRODUCTION)
     tariffSpec.addToRates(new Rate(value: 0.09))
@@ -89,7 +90,7 @@ class AccountingServiceTests extends GroovyTestCase
     tariffB2 = new Tariff(tariffSpec: tariffSpec)
     tariffB2.init()
     assert tariffB2.save()
-    tariffSpec = new TariffSpecification(brokerId: jim.id, 
+    tariffSpec = new TariffSpecification(broker: jim, 
                                          minDuration: TimeService.WEEK * 8,
                                          expiration: exp, periodicPayment: 0.01)
     tariffSpec.addToRates(new Rate(value: 0.123))
@@ -130,6 +131,14 @@ class AccountingServiceTests extends GroovyTestCase
     assertNotNull(accountingService)
   }
   
+  void testBrokerDb ()
+  {
+    Broker b1 = Broker.get(bob.id)
+    assertEquals("bob in db by id", bob, b1)
+    Broker b2 = Broker.findByUsername("Bob")
+    assertEquals("bob in db by name", bob, b2)
+  }
+  
   // create and test tariff transactions
   void testTariffTransaction ()
   {
@@ -142,6 +151,9 @@ class AccountingServiceTests extends GroovyTestCase
     def ttx = TariffTransaction.get(0)
     assertNotNull("first ttx not null", ttx)
     assertEquals("correct charge id 0", 42.1, ttx.charge, 1e-6)
+    Broker b1 = ttx.broker
+    Broker b2 = Broker.get(bob.id)
+    assertEquals("same broker", b1, b2)
     ttx = TariffTransaction.get(1)
     assertNotNull("second ttx not null", ttx)
     assertEquals("correct amount id 1", 77.0, ttx.quantity, 1e-6)
@@ -178,6 +190,9 @@ class AccountingServiceTests extends GroovyTestCase
     assertNotNull("first mtx not null", mtx)
     assertEquals("correct timeslot id 0", 5, mtx.timeslot.serialNumber)
     assertEquals("correct price id 0", 45.0, mtx.price, 1e-6)
+    Broker b1 = mtx.broker
+    Broker b2 = Broker.get(bob.id)
+    assertEquals("same broker", b1, b2)
     mtx = MarketTransaction.get(1)
     assertNotNull("second mtx not null", mtx)
     assertEquals("correct quantity id 1", 0.7, mtx.quantity, 1e-6)
@@ -207,6 +222,7 @@ class AccountingServiceTests extends GroovyTestCase
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
         tariffJ1, customerInfo2, 12, 120.0, 8.4)
     assertEquals("correct number in list", 9, accountingService.pendingTransactions.size())
+    
     // activate and check cash and market positions
     accountingService.activate(timeService.currentTime, 3)
     assertEquals("correct cash balance, Bob",

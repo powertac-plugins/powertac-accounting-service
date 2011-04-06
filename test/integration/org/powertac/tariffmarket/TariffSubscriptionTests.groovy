@@ -60,7 +60,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     timeService.currentTime = now.toInstant()
     Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
     TariffSpecification tariffSpec =
-        new TariffSpecification(brokerId: broker.getId(),
+        new TariffSpecification(broker: broker,
         expiration: exp,
         minDuration: TimeService.WEEK * 8)
     tariffSpec.addToRates(new Rate(value: 0.121))
@@ -106,7 +106,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
   {
     Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
     TariffSpecification tariffSpec =
-        new TariffSpecification(brokerId: broker.getId(),
+        new TariffSpecification(broker: broker,
                                 expiration: exp,
                                 minDuration: TimeService.WEEK * 4,
                                 signupPayment: -33.2)
@@ -137,7 +137,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
   {
     DateTime exp = new DateTime(now.millis + TimeService.WEEK * 10, DateTimeZone.UTC)
     TariffSpecification tariffSpec =
-        new TariffSpecification(brokerId: broker.getId(),
+        new TariffSpecification(broker: broker,
                                 expiration: exp.toInstant(),
                                 minDuration: TimeService.WEEK * 4,
                                 signupPayment: -33.2,
@@ -187,7 +187,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
   {
     Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
     TariffSpecification tariffSpec =
-        new TariffSpecification(brokerId: broker.getId(),
+        new TariffSpecification(broker: broker,
                                 expiration: exp,
                                 minDuration: TimeService.WEEK * 4,
                                 signupPayment: -33.2)
@@ -235,7 +235,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
   {
     Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
     TariffSpecification tariffSpec =
-        new TariffSpecification(brokerId: broker.getId(),
+        new TariffSpecification(broker: broker,
                                 expiration: exp,
                                 minDuration: TimeService.WEEK * 4,
                                 signupPayment: -31.2,
@@ -273,7 +273,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
   {
     Instant exp = new Instant(now.millis + TimeService.WEEK * 10)
     TariffSpecification tariffSpec =
-        new TariffSpecification(brokerId: broker.getId(),
+        new TariffSpecification(broker: broker,
                                 powerType: PowerType.PRODUCTION,
                                 expiration: exp,
                                 minDuration: TimeService.WEEK * 4,
