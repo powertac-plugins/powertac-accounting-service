@@ -79,7 +79,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     tariffMarketService.tariffPublicationFee = 42.0
     tariffMarketService.tariffRevocationFee = 420.0
     exp = new DateTime(2011, 3, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
-    tariffSpec = new TariffSpecification(brokerId: broker.id, expiration: exp,
+    tariffSpec = new TariffSpecification(broker: broker, expiration: exp,
                                          minDuration: TimeService.WEEK * 8)
     Rate r1 = new Rate(value: 0.121)
     tariffSpec.addToRates(r1)
@@ -105,15 +105,15 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // invalid tariffSpec
   void testProcessTariffInvalid ()
   {
-    tariffSpec.brokerId = ''
+    tariffSpec.broker = null
     TariffStatus status = tariffMarketService.processTariff(tariffSpec)
     assertNull("no broker, null status", status)
     
-    tariffSpec.brokerId = broker.id
+    tariffSpec.broker = broker
     tariffSpec.minDuration = null
     status = tariffMarketService.processTariff(tariffSpec)
     assertNotNull("bad spec, non-null status", status)
-    assertEquals("correct broker ID", broker.id, status.brokerId)
+    assertEquals("correct broker", broker, status.broker)
     assertEquals("correct spec ID", tariffSpec.id, status.tariffId)
     assertEquals("correct status ID", tariffSpec.id, status.updateId)
     assertEquals("correct status", TariffStatus.Status.invalidTariff, status.status)
@@ -126,7 +126,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     TariffStatus status = tariffMarketService.processTariff(tariffSpec)
     // check the status return
     assertNotNull("non-null status", status)
-    assertEquals("broker ID", tariffSpec.brokerId, status.brokerId)
+    assertEquals("broker", tariffSpec.broker, status.broker)
     assertEquals("tariff ID", tariffSpec.id, status.tariffId)
     assertEquals("status ID", tariffSpec.id, status.updateId)
     assertEquals("success", TariffStatus.Status.success, status.status)
@@ -156,7 +156,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("Correct expiration", exp, tf.expiration)
     Instant newExp = new DateTime(2011, 3, 1, 10, 0, 0, 0, DateTimeZone.UTC).toInstant()
     TariffExpire tex = new TariffExpire(tariffId: "bogus",
-                                        brokerId: tariffSpec.brokerId,
+                                        broker: tariffSpec.broker,
                                         newExpiration: newExp)
     status = tariffMarketService.processTariff(tex)
     assertNotNull("non-null status", status)
@@ -176,7 +176,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     Instant newExp = new DateTime(2011, 3, 1, 8, 0, 0, 0, DateTimeZone.UTC).toInstant()
     timeService.currentTime = newExp
     TariffExpire tex = new TariffExpire(tariffId: tariffSpec.id,
-                                        brokerId: tariffSpec.brokerId)
+                                        broker: tariffSpec.broker)
     status = tariffMarketService.processTariff(tex)
     assertNotNull("non-null status", status)
     assertEquals("correct status ID", tex.id, status.updateId)
@@ -193,7 +193,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("Correct expiration", exp, tf.expiration)
     Instant newExp = new DateTime(2011, 3, 1, 10, 0, 0, 0, DateTimeZone.UTC).toInstant()
     TariffExpire tex = new TariffExpire(tariffId: tariffSpec.id,
-                                        brokerId: tariffSpec.brokerId,
+                                        broker: tariffSpec.broker,
                                         newExpiration: newExp)
     status = tariffMarketService.processTariff(tex)
     assertNotNull("non-null status", status)
@@ -215,7 +215,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     Tariff tf = Tariff.get(tariffSpec.id)
     assertFalse("not revoked", tf.isRevoked())
     TariffRevoke tex = new TariffRevoke(tariffId: tariffSpec.id,
-                                        brokerId: tariffSpec.brokerId)
+                                        broker: tariffSpec.broker)
     status = tariffMarketService.processTariff(tex)
     assertNotNull("non-null status", status)
     assertEquals("correct status ID", tex.id, status.updateId)
@@ -228,7 +228,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   {
     // what the broker does...
     TariffSpecification ts2 =
-          new TariffSpecification(brokerId: broker.id, expiration: new DateTime(2011, 3, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant(),
+          new TariffSpecification(broker: broker, expiration: new DateTime(2011, 3, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant(),
                                   minDuration: TimeService.WEEK * 4)
     Rate r1 = new Rate(isFixed: false, minValue: 0.05, maxValue: 0.50,
                        noticeInterval: 0, expectedMean: 0.10)
@@ -243,8 +243,8 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     // check the status return2
     assertNotNull("non-null status 1", status1)
     assertNotNull("non-null status 2", status2)
-    assertEquals("broker ID 1", tariffSpec.brokerId, status1.brokerId)
-    assertEquals("broker ID 2", ts2.brokerId, status2.brokerId)
+    assertEquals("broker ID 1", tariffSpec.broker, status1.broker)
+    assertEquals("broker ID 2", ts2.broker, status2.broker)
     assertEquals("tariff ID 1", tariffSpec.id, status1.tariffId)
     assertEquals("tariff ID 2", ts2.id, status2.tariffId)
     assertEquals("status ID 1", tariffSpec.id, status1.updateId)
@@ -261,7 +261,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     
     // update the hourly rate on tariff 2
     HourlyCharge hc = new HourlyCharge(value: 0.09, atTime: start)
-    VariableRateUpdate vru = new VariableRateUpdate(payload: hc, brokerId: broker.id, tariffId: tf2.id, rateId: r1.id)
+    VariableRateUpdate vru = new VariableRateUpdate(payload: hc, broker: broker, tariffId: tf2.id, rateId: r1.id)
     TariffStatus vrs = tariffMarketService.processTariff(vru)
     assertNotNull("non-null vru status", vrs)
     assertEquals("success vru", TariffStatus.Status.success, vrs.status)
@@ -286,13 +286,13 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("no initial tariffs", 0,
           tariffMarketService.getActiveTariffList(PowerType.CONSUMPTION).size())
     // first, add multiple tariffs for more than one power type, multiple expirations
-    def tsc1 = new TariffSpecification(brokerId: broker.id, 
+    def tsc1 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-    def tsc2 = new TariffSpecification(brokerId: broker.id, 
+    def tsc2 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY * 2),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-    def tsc3 = new TariffSpecification(brokerId: broker.id, 
+    def tsc3 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY * 3),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
     Rate r1 = new Rate(value: 0.222)
@@ -302,10 +302,10 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     tariffMarketService.processTariff(tsc1)
     tariffMarketService.processTariff(tsc2)
     tariffMarketService.processTariff(tsc3)
-    def tsp1 = new TariffSpecification(brokerId: broker.id, 
+    def tsp1 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY),
           minDuration: TimeService.WEEK* 8, powerType: PowerType.PRODUCTION)
-    def tsp2 = new TariffSpecification(brokerId: broker.id, 
+    def tsp2 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY * 2),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
     Rate r2 = new Rate(value: 0.119)
@@ -370,7 +370,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("one registration", 1, tariffMarketService.registrations.size())
     assertEquals("no tariffs at 12:00", 0, publishedTariffs.size())
     // publish some tariffs over a period of three hours, check for publication
-    def tsc1 = new TariffSpecification(brokerId: broker.id,
+    def tsc1 = new TariffSpecification(broker: broker,
         expiration: new Instant(start.millis + TimeService.DAY),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
     Rate r1 = new Rate(value: 0.222)
@@ -381,12 +381,12 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     tariffMarketService.activate(timeService.currentTime, 2)
     assertEquals("no tariffs at 13:00", 0, publishedTariffs.size())
     
-    def tsc2 = new TariffSpecification(brokerId: broker.id,
+    def tsc2 = new TariffSpecification(broker: broker,
         expiration: new Instant(start.millis + TimeService.DAY * 2),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
     tsc2.addToRates(r1)
     tariffMarketService.processTariff(tsc2)
-    def tsc3 = new TariffSpecification(brokerId: broker.id,
+    def tsc3 = new TariffSpecification(broker: broker,
         expiration: new Instant(start.millis + TimeService.DAY * 3),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
     tsc3.addToRates(r1)
@@ -396,10 +396,10 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     tariffMarketService.activate(timeService.currentTime, 2)
     assertEquals("no tariffs at 14:00", 0, publishedTariffs.size())
 
-    def tsp1 = new TariffSpecification(brokerId: broker.id,
+    def tsp1 = new TariffSpecification(broker: broker,
         expiration: new Instant(start.millis + TimeService.DAY),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
-    def tsp2 = new TariffSpecification(brokerId: broker.id,
+    def tsp2 = new TariffSpecification(broker: broker,
         expiration: new Instant(start.millis + TimeService.DAY * 2),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
     Rate r2 = new Rate(value: 0.119)
@@ -419,13 +419,13 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   void testGetRevokedSubscriptionList ()
   {    
     // create some tariffs
-    def tsc1 = new TariffSpecification(brokerId: broker.id, 
+    def tsc1 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY * 5),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-    def tsc2 = new TariffSpecification(brokerId: broker.id, 
+    def tsc2 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY * 7),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-    def tsc3 = new TariffSpecification(brokerId: broker.id, 
+    def tsc3 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY * 9),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
     Rate r1 = new Rate(value: 0.222)
@@ -474,7 +474,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     // forward an hour, revoke the second tariff
     timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
     TariffRevoke tex = new TariffRevoke(tariffId: tc2.id,
-                                        brokerId: tc2.brokerId)
+                                        broker: tc2.broker)
     def status = tariffMarketService.processTariff(tex)
     assertNotNull("non-null status", status)
     assertEquals("success", TariffStatus.Status.success, status.status)
@@ -506,13 +506,13 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   void testGetDefaultTariff ()
   {
     // set defaults for consumption and production
-    def tsc1 = new TariffSpecification(brokerId: broker.id, 
+    def tsc1 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.WEEK),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
     Rate r1 = new Rate(value: 0.222)
     tsc1.addToRates(r1)
     assertTrue("add consumption default", tariffMarketService.setDefaultTariff(tsc1))
-    def tsp1 = new TariffSpecification(brokerId: broker.id, 
+    def tsp1 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.WEEK),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
     r1 = new Rate(value: 0.122)

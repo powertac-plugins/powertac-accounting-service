@@ -42,7 +42,7 @@ class AccountingService
   def pendingTransactions = []
   
   // transaction ID counter
-  int idCount = 0
+  //int idCount = 0
 
   @Synchronized
   MarketTransaction addMarketTransaction (Broker broker,
@@ -55,7 +55,7 @@ class AccountingService
                                                   price: price,
                                                   quantity: quantity,
                                                   postedTime: timeService.currentTime)
-    mtx.id = idCount++
+    //mtx.id = idCount++
     assert mtx.save()
     pendingTransactions.add(mtx)
     return mtx
@@ -73,7 +73,7 @@ class AccountingService
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
             CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
-    ttx.id = idCount++
+    //ttx.id = idCount++
     assert ttx.save()
     pendingTransactions.add(ttx)
     return ttx
@@ -129,7 +129,6 @@ class AccountingService
   // process a tariff transaction
   private void processTransaction (TariffTransaction tx)
   {
-    //ensureCash(tx.broker)
     CashPosition cash = tx.broker.cash
     cash.deposit tx.charge
     cash.addToTariffTransactions(tx)
@@ -140,31 +139,25 @@ class AccountingService
   // process a market transaction
   private void processTransaction (MarketTransaction tx)
   {
-    //ensureCash(tx.broker)
-    CashPosition cash = tx.broker.cash
+    Broker broker = tx.broker
+    CashPosition cash = broker.cash
     cash.deposit(-tx.price * Math.abs(tx.quantity))
     cash.addToMarketTransactions(tx)
     MarketPosition mkt = 
-        MarketPosition.findByBrokerAndTimeslot(tx.broker, tx.timeslot)
+        MarketPosition.findByBrokerAndTimeslot(broker, tx.timeslot)
     if (mkt == null) {
-      mkt = new MarketPosition(broker: tx.broker, timeslot: tx.timeslot)
+      mkt = new MarketPosition(broker: broker, timeslot: tx.timeslot)
       mkt.validate()
       assert mkt.save()
-      //println "New MarketPosition(${tx.broker.userName}, ${tx.timeslot.serialNumber}): ${mkt.id}"
-      tx.broker.addToMarketPositions(mkt)
+      println "New MarketPosition(${broker.username}, ${tx.timeslot.serialNumber}): ${mkt.id}"
+      broker.addToMarketPositions(mkt)
+      if (!broker.validate()) {
+        broker.errors.each { println it.toString() }
+      }
+      assert broker.save()
     }
     mkt.updateBalance(tx.quantity)
     assert mkt.save()
-    //println "MarketPosition count = ${MarketPosition.count()}"
-    assert tx.broker.save()
+    println "MarketPosition count = ${MarketPosition.count()}"
   }
-  
-  // make sure the broker has a non-null cash position
-  //private void ensureCash (Broker broker)
-  //{
-  //  if (broker.cash == null) {
-  //    broker.cash = new CashPosition(broker: broker)
-  //    broker.save()     
-  //  }
-  //}
 }

@@ -65,8 +65,9 @@ class AbstractCustomerTests extends GroovyTestCase
   {
 	
     super.setUp()
-	TariffSpecification.list()*.delete()
-	Tariff.list()*.delete()
+    TariffSpecification.list()*.delete()
+    Tariff.list()*.delete()
+    Broker.list()*.delete()
     broker1 = new Broker(username: "Joe")
     broker1.save()
     broker2 = new Broker(username: "Anna")
@@ -77,13 +78,13 @@ class AbstractCustomerTests extends GroovyTestCase
 
     exp = new Instant(now.millis + TimeService.WEEK * 10)
     TariffSpecification tariffSpec =
-        new TariffSpecification(brokerId: broker1.getId(),
+        new TariffSpecification(broker: broker1,
         expiration: exp,
         minDuration: TimeService.WEEK * 8)
     tariffSpec.addToRates(new Rate(value: 0.121))
     tariffSpec.save()
 
-    defaultTariffSpec = new TariffSpecification(brokerId: broker1.getId(),
+    defaultTariffSpec = new TariffSpecification(broker: broker1,
         expiration: exp,
         minDuration: TimeService.WEEK * 8)
     defaultTariffSpec.addToRates(new Rate(value: 0.222))
@@ -144,14 +145,13 @@ class AbstractCustomerTests extends GroovyTestCase
     customer.subscribeDefault()
     customer.save()
 
-	println()
-    def tsc1 = new TariffSpecification(brokerId: broker2.id,
+    def tsc1 = new TariffSpecification(broker: broker2,
         expiration: new Instant(now.millis + TimeService.DAY),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-    def tsc2 = new TariffSpecification(brokerId: broker2.id,
+    def tsc2 = new TariffSpecification(broker: broker2,
         expiration: new Instant(now.millis + TimeService.DAY * 2),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-    def tsc3 = new TariffSpecification(brokerId: broker2.id,
+    def tsc3 = new TariffSpecification(broker: broker2,
         expiration: new Instant(now.millis + TimeService.DAY * 3),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
     Rate r2 = new Rate(value: 0.222)
@@ -180,13 +180,13 @@ class AbstractCustomerTests extends GroovyTestCase
     customer.save()
 
     // create some tariffs
-    def tsc1 = new TariffSpecification(brokerId: broker1.id, 
+    def tsc1 = new TariffSpecification(broker: broker1,
           expiration: new Instant(now.millis + TimeService.DAY * 5),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-    def tsc2 = new TariffSpecification(brokerId: broker1.id, 
+    def tsc2 = new TariffSpecification(broker: broker1, 
           expiration: new Instant(now.millis + TimeService.DAY * 7),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-    def tsc3 = new TariffSpecification(brokerId: broker1.id, 
+    def tsc3 = new TariffSpecification(broker: broker1, 
           expiration: new Instant(now.millis + TimeService.DAY * 9),
           minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION) 
     Rate r1 = new Rate(value: 0.222)
@@ -217,8 +217,7 @@ class AbstractCustomerTests extends GroovyTestCase
 	assertEquals("4 Subscriptions for customer", 4, customer.subscriptions?.size())
 	
 	timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
-	TariffRevoke tex = new TariffRevoke(tariffId: tc2.id,
-										brokerId: tc2.brokerId)
+	TariffRevoke tex = new TariffRevoke(tariffId: tc2.id, broker: tc2.broker)
 	def status = tariffMarketService.processTariff(tex)
 	assertNotNull("non-null status", status)
 	assertEquals("success", TariffStatus.Status.success, status.status)
@@ -274,7 +273,7 @@ class AbstractCustomerTests extends GroovyTestCase
 	  assertEquals("one registration", 1, tariffMarketService.registrations.size())
 	  assertEquals("no tariffs at 12:00", 0, customer.publishedTariffs.size())
 	  // publish some tariffs over a period of three hours, check for publication
-	  def tsc1 = new TariffSpecification(brokerId: broker1.id,
+	  def tsc1 = new TariffSpecification(broker: broker1,
 		  expiration: new Instant(start.millis + TimeService.DAY),
 		  minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
 	  Rate r1 = new Rate(value: 0.222)
@@ -285,12 +284,12 @@ class AbstractCustomerTests extends GroovyTestCase
 	  tariffMarketService.activate(timeService.currentTime, 2)
 	  assertEquals("no tariffs at 13:00", 0, customer.publishedTariffs.size())
 	  
-	  def tsc2 = new TariffSpecification(brokerId: broker1.id,
+	  def tsc2 = new TariffSpecification(broker: broker1,
 		  expiration: new Instant(start.millis + TimeService.DAY * 2),
 		  minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
 	  tsc2.addToRates(r1)
 	  tariffMarketService.processTariff(tsc2)
-	  def tsc3 = new TariffSpecification(brokerId: broker1.id,
+	  def tsc3 = new TariffSpecification(broker: broker1,
 		  expiration: new Instant(start.millis + TimeService.DAY * 3),
 		  minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
 	  tsc3.addToRates(r1)
@@ -300,10 +299,10 @@ class AbstractCustomerTests extends GroovyTestCase
 	  tariffMarketService.activate(timeService.currentTime, 2)
 	  assertEquals("no tariffs at 14:00", 0, customer.publishedTariffs.size())
  
-	  def tsp1 = new TariffSpecification(brokerId: broker1.id,
+	  def tsp1 = new TariffSpecification(broker: broker1,
 		  expiration: new Instant(start.millis + TimeService.DAY),
 		  minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
-	  def tsp2 = new TariffSpecification(brokerId: broker1.id,
+	  def tsp2 = new TariffSpecification(broker: broker1,
 		  expiration: new Instant(start.millis + TimeService.DAY * 2),
 		  minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
 	  Rate r2 = new Rate(value: 0.119)
