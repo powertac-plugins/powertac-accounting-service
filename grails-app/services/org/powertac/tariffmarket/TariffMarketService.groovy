@@ -88,14 +88,14 @@ class TariffMarketService
   @Override
   public TariffStatus processTariff (TariffSpecification spec)
   {
-    Broker broker = Broker.get(spec.brokerId)
+    Broker broker = spec.broker
     if (broker == null) {
-      log.error("No such broker ${spec.brokerId}")
+      log.error("No such broker ${spec}")
       return null
     }
     if (!spec.validate()) {
       log.error("Failed to validate TariffSpec ${spec.id} from ${spec.brokerId}: ${spec.errors.allErrors}")
-      return new TariffStatus(brokerId: spec.brokerId,
+      return new TariffStatus(broker: spec.broker,
                               tariffId: spec.id,
                               updateId: spec.id,
                               status: TariffStatus.Status.invalidTariff,
@@ -106,7 +106,7 @@ class TariffMarketService
     tariff.init()
     if (!tariff.validate()) {
       log.error("Failed to validate new Tariff: ${tariff.errors.allErrors}")
-      return new TariffStatus(brokerId: spec.brokerId,
+      return new TariffStatus(broker: spec.broker,
                               tariffId: spec.id,
                               updateId: spec.id,
                               status: TariffStatus.Status.invalidTariff,
@@ -122,7 +122,7 @@ class TariffMarketService
           accountingService.addTariffTransaction(TariffTransactionType.PUBLISH,
               tariff, null, 0, 0.0, tariffPublicationFee)
     }
-    return new TariffStatus(brokerId: spec.brokerId,
+    return new TariffStatus(broker: spec.broker,
                             tariffId: spec.id,
                             updateId: spec.id,
                             status: TariffStatus.Status.success)
@@ -195,7 +195,7 @@ class TariffMarketService
     }
     else {
       // failed to add hourly charge
-      new TariffStatus(brokerId: update.brokerId,
+      new TariffStatus(broker: update.broker,
                        tariffId: update.tariffId,
                        updateId: update.id,
                        status: TariffStatus.Status.invalidUpdate,
@@ -325,7 +325,7 @@ class TariffMarketService
   {
     if (!update.validate()) {
       log.error("Failed to validate TariffUpdate: ${update.errors.allErrors}")
-      return [null, new TariffStatus(brokerId: update.brokerId,
+      return [null, new TariffStatus(broker: update.broker,
                                      tariffId: update.tariffId,
                                      updateId: update.id,
                                      status: TariffStatus.Status.invalidUpdate,
@@ -334,7 +334,7 @@ class TariffMarketService
     Tariff tariff = Tariff.get(update.tariffId)
     if (tariff == null) {
       log.error("update - no such tariff ${update.tariffId}, broker ${update.brokerId}")
-      return [null, new TariffStatus(brokerId: update.brokerId,
+      return [null, new TariffStatus(broker: update.broker,
                                      tariffId: update.tariffId,
                                      updateId: update.id,
                                      status: TariffStatus.Status.noSuchTariff)]
@@ -344,7 +344,7 @@ class TariffMarketService
   
   private TariffStatus success (TariffUpdate update)
   {
-    return new TariffStatus(brokerId: update.brokerId,
+    return new TariffStatus(broker: update.broker,
                             tariffId: update.tariffId,
                             updateId: update.id,
                             status: TariffStatus.Status.success)
