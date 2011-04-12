@@ -171,8 +171,6 @@ class TariffMarketService
         TariffTransaction rev = 
           accountingService.addTariffTransaction(TariffTransactionType.REVOKE,
               tariff, null, 0, 0.0, tariffRevocationFee)
-        // TODO - broadcast to all brokers
-        //broadcast << update
       }
     }
     return success(update)

@@ -226,9 +226,9 @@ class AccountingServiceTests extends GroovyTestCase
     // activate and check cash and market positions
     accountingService.activate(timeService.currentTime, 3)
     assertEquals("correct cash balance, Bob",
-        (-45.0 * 0.5 - 31.0 * 0.3 - 43.0 * 0.7 + 7.7 + 8.0 -4.5), bob.cash.overallBalance, 1e-6)
+        (-45.0 * 0.5 - 31.0 * 0.3 - 43.0 * 0.7 + 7.7 + 8.0 -4.5), bob.cash.balance, 1e-6)
     assertEquals("correct cash balance, Jim",
-        (-35.0 * 0.4 + 20.0 * 0.2 + 8.4), jim.cash.overallBalance, 1e-6)
+        (-35.0 * 0.4 + 20.0 * 0.2 + 8.4), jim.cash.balance, 1e-6)
     assertEquals("3 mkt positions", 3, MarketPosition.count())
     MarketPosition mkt = 
         MarketPosition.findByBrokerAndTimeslot(bob, Timeslot.findBySerialNumber(5))

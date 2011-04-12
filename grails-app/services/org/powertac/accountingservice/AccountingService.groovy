@@ -55,7 +55,9 @@ class AccountingService
                                                   price: price,
                                                   quantity: quantity,
                                                   postedTime: timeService.currentTime)
-    //mtx.id = idCount++
+    if (!mtx.validate()) {
+      mtx.errors.allErrors.each { println it.toString() }
+    }
     assert mtx.save()
     pendingTransactions.add(mtx)
     return mtx
@@ -147,7 +149,9 @@ class AccountingService
         MarketPosition.findByBrokerAndTimeslot(broker, tx.timeslot)
     if (mkt == null) {
       mkt = new MarketPosition(broker: broker, timeslot: tx.timeslot)
-      mkt.validate()
+      if (!mkt.validate()) {
+        mkt.errors.allErrors.each { println it.toString() }
+      }
       assert mkt.save()
       println "New MarketPosition(${broker.username}, ${tx.timeslot.serialNumber}): ${mkt.id}"
       broker.addToMarketPositions(mkt)
