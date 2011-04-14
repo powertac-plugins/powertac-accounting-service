@@ -23,6 +23,7 @@ import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.PowerType;
 import org.powertac.common.enumerations.TariffTransactionType;
 import org.powertac.common.exceptions.PositionUpdateException
+import org.powertac.common.interfaces.BrokerProxy
 import org.powertac.common.*
 
 class AccountingServiceTests extends GroovyTestCase 
@@ -197,6 +198,66 @@ class AccountingServiceTests extends GroovyTestCase
     assertNotNull("second mtx not null", mtx)
     assertEquals("correct quantity id 1", 0.7, mtx.quantity, 1e-6)
   }
+  
+  // simple activation
+  void testSimpleActivate ()
+  {
+    // need a Competition instance for interest calculation
+    Competition comp = 
+        new Competition(name: "test", bankInterest: 0.12)
+    assert comp.save()
+    
+    // broker proxy
+    def messages = [:]
+    def proxy =
+      [sendMessage: {broker, message ->
+        if (messages[broker] == null) {
+          messages[broker] = []
+        }
+        messages[broker] << message
+      },
+      sendMessages: {broker, messageList ->
+        if (messages[broker] == null) {
+          messages[broker] = []
+        }
+        messageList.each { message ->
+          messages[broker] << message
+        }
+      }] as BrokerProxy
+    accountingService.brokerProxyService = proxy
+    
+    // add a couple of transactions
+    accountingService.addMarketTransaction(bob,
+      Timeslot.findBySerialNumber(5), 45.0, 0.5)
+    accountingService.addMarketTransaction(bob,
+      Timeslot.findBySerialNumber(6), 43.0, 0.7)
+
+    // activate and check messages
+    accountingService.activate(timeService.currentTime, 3)
+    // should have cash position, no market positions for jim
+    assertEquals("one message", 1, messages[jim].size())
+    assertTrue("it's a CashPosition", messages[jim][0] instanceof CashPosition)
+    assertEquals("no balance", 0.0, messages[jim][0].balance)
+    // should be market transactions, and cash and mkt positions for bob
+    assertEquals("five messages", 5, messages[bob].size())
+    def mtx1 = messages[bob].find { msg ->
+      msg instanceof MarketTransaction &&
+      msg.broker == bob &&
+      msg.timeslot == Timeslot.findBySerialNumber(5)
+    }
+    assertNotNull("found 1st tx", mtx1)
+    assertEquals("correct quantity", 0.5, mtx1.quantity)
+    def mp1 = messages[bob].find { msg ->
+      msg instanceof MarketPosition &&
+      msg.broker == bob &&
+      msg.timeslot == Timeslot.findBySerialNumber(5)
+    }
+    assertEquals("correct balance for ts5", 0.5, mp1.overallBalance)
+    def cp1 = messages[bob].find { msg ->
+      msg instanceof CashPosition && msg.broker == bob
+    }
+    assertEquals("correct cash position", -45.0 * 0.5 + -43.0 * 0.7, cp1.balance)
+  }
 
   // test activation
   void testActivate ()
@@ -274,6 +335,53 @@ class AccountingServiceTests extends GroovyTestCase
         accountingService.getCurrentMarketPosition (bob), 1e-6)
     assertEquals("correct position, jim, ts5", 0.0,
         accountingService.getCurrentMarketPosition (jim), 1e-6)
+  }
+  
+  // interest should be paid/charged at midnight activation
+  void testInterestPayment ()
+  {
+    // need a Competition instance for interest calculation
+    Competition comp =
+        new Competition(name: "test", bankInterest: 0.12)
+    assert comp.save()
+    
+    // broker proxy
+    def messages = [:]
+    def proxy =
+      [sendMessage: {broker, message ->
+        if (messages[broker] == null) {
+          messages[broker] = []
+        }
+        messages[broker] << message
+      },
+      sendMessages: {broker, messageList ->
+        if (messages[broker] == null) {
+          messages[broker] = []
+        }
+        messageList.each { message ->
+          messages[broker] << message
+        }
+      }] as BrokerProxy
+    accountingService.brokerProxyService = proxy
 
+    // bob is in the hole
+    bob.cash.balance = -1000.0
+
+    // move to midnight, activate and check messages
+    timeService.currentTime = new DateTime(2011, 1, 27, 0, 0, 0, 0, DateTimeZone.UTC).toInstant()
+    accountingService.activate(timeService.currentTime, 3)
+
+    // should have bank tx and cash position for Bob
+    assertEquals("two messages", 2, messages[bob].size())
+    def btx1 = messages[bob].find { msg ->
+      msg instanceof BankTransaction && msg.broker == bob
+    }
+    assertNotNull("found bank tx", btx1)
+    assertEquals("correct amount", -1000.0 * 0.12 / 365.0, btx1.amount, 1e-6)
+    def cp1 = messages[bob].find { msg ->
+      msg instanceof CashPosition && msg.broker == bob
+    }
+    assertNotNull("found cash posn", cp1)
+    assertEquals("correct amount", -1000.0 * (1.0 + 0.12 / 365.0), cp1.balance, 1e-6)
   }
 }

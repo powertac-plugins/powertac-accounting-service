@@ -92,7 +92,8 @@ class AbstractCustomerTests extends GroovyTestCase
 
     tariffMarketService.setDefaultTariff(defaultTariffSpec)
 
-    assertEquals("correct Default Tariff", defaultTariffSpec, tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType).tariffSpec)
+    assertEquals("correct Default Tariff", defaultTariffSpec, 
+                 tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType).tariffSpec)
     assertEquals("One Tariff", 1, Tariff.count())
   }
 
@@ -102,7 +103,8 @@ class AbstractCustomerTests extends GroovyTestCase
 
   void testCreationAndSubscriptionToDefault() 
   {
-    customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, powerTypes: [PowerType.CONSUMPTION])
+    customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, 
+                                    powerTypes: [PowerType.CONSUMPTION])
     if (!customerInfo.validate()) {
       customerInfo.errors.each { println it.toString() }
       fail("Could not save customerInfo")
@@ -121,7 +123,8 @@ class AbstractCustomerTests extends GroovyTestCase
 
   void testPowerConsumption()
   {
-    customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, powerTypes: [PowerType.CONSUMPTION])
+    customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, 
+                                    powerTypes: [PowerType.CONSUMPTION])
     customerInfo.save()
     customer = new AbstractCustomer(CustomerInfo: customerInfo)
     customer.init()
@@ -133,12 +136,14 @@ class AbstractCustomerTests extends GroovyTestCase
 
     assertFalse("Customer consumed power", customer.subscriptions?.totalUsage == 0)
 
-    assertEquals("Tariff Transaction Created", 1, TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
+    assertEquals("Tariff Transaction Created", 1,
+                 TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
   }
 
   void testChangingSubscriptions()
   {
-    customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, powerTypes: [PowerType.CONSUMPTION])
+    customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, 
+                                    powerTypes: [PowerType.CONSUMPTION])
     customerInfo.save()
     customer = new AbstractCustomer(CustomerInfo: customerInfo)
     customer.init()
