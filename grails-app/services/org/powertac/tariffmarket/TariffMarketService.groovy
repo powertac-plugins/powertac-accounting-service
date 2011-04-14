@@ -43,6 +43,7 @@ import org.powertac.common.interfaces.BrokerProxy
 
 class TariffMarketService
     implements org.powertac.common.interfaces.TariffMarket,
+               org.powertac.common.interfaces.BrokerMessageListener,
                org.powertac.common.interfaces.TimeslotPhaseProcessor,
                org.springframework.beans.factory.InitializingBean
 {
@@ -68,10 +69,24 @@ class TariffMarketService
   void afterPropertiesSet ()
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
-
+    brokerProxyService?.registerBrokerTariffListener(this)
   }
 
   // ----------------- Broker message API --------------------
+  /**
+   * Receives and dispatches an incoming broker message
+   */
+  @Override
+  public void receiveMessage (msg)
+  {
+    // dispatch incoming message
+    def result = processTariff(msg)
+    // return non-null result as msg
+    if (result != null) {
+      brokerProxyService.sendMessage(result.broker, result)
+    }
+  }
+  
   /**
    * Process a bogus null input.
    */
