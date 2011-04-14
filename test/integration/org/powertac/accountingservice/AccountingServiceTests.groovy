@@ -344,6 +344,7 @@ class AccountingServiceTests extends GroovyTestCase
     Competition comp =
         new Competition(name: "test", bankInterest: 0.12)
     assert comp.save()
+    assertEquals("correct competition", comp, Competition.currentCompetition())
     
     // broker proxy
     def messages = [:]

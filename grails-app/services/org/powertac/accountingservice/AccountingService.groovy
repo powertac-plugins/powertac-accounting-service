@@ -143,12 +143,13 @@ class AccountingService
     Broker.list().each { broker ->
       // run interest payments at midnight
       if (timeService.hourOfDay == 0) {
+        def brokerRate = rate
         CashPosition cash = broker.cash
         if (cash.balance >= 0.0) {
           // rate on positive balance is 1/2 of negative
-          rate /= 2.0
+          brokerRate /= 2.0
         }
-        BigDecimal interest = cash.balance * rate
+        BigDecimal interest = cash.balance * brokerRate
         brokerMsg[broker] << 
             new BankTransaction(broker: broker, amount: interest,
                                 postedTime: timeService.currentTime)
