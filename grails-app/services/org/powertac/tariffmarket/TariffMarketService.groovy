@@ -13,7 +13,6 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-
 package org.powertac.tariffmarket
 
 import java.util.List
@@ -41,8 +40,15 @@ import org.powertac.common.enumerations.PowerType
 import org.powertac.common.enumerations.TariffTransactionType
 import org.powertac.common.interfaces.BrokerProxy
 
+/**
+ * Implements the Tariff Market abstraction. Incoming tariff-related
+ * messages from brokers are received and processed, tariffs are published
+ * periodically, and subscriptions are processed on behalf of customers.
+ * @author John Collins
+ */
 class TariffMarketService
     implements org.powertac.common.interfaces.TariffMarket,
+               org.powertac.common.interfaces.BrokerMessageListener,
                org.powertac.common.interfaces.TimeslotPhaseProcessor,
                org.springframework.beans.factory.InitializingBean
 {
@@ -68,10 +74,24 @@ class TariffMarketService
   void afterPropertiesSet ()
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
-
+    brokerProxyService?.registerBrokerTariffListener(this)
   }
 
   // ----------------- Broker message API --------------------
+  /**
+   * Receives and dispatches an incoming broker message
+   */
+  @Override
+  public void receiveMessage (msg)
+  {
+    // dispatch incoming message
+    def result = processTariff(msg)
+    // return non-null result as msg
+    if (result != null) {
+      brokerProxyService.sendMessage(result.broker, result)
+    }
+  }
+  
   /**
    * Process a bogus null input.
    */
@@ -171,8 +191,6 @@ class TariffMarketService
         TariffTransaction rev = 
           accountingService.addTariffTransaction(TariffTransactionType.REVOKE,
               tariff, null, 0, 0.0, tariffRevocationFee)
-        // TODO - broadcast to all brokers
-        //broadcast << update
       }
     }
     return success(update)
