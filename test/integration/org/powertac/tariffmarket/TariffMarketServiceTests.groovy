@@ -16,23 +16,22 @@
 
 package org.powertac.tariffmarket
 
-import static org.junit.Assert.*
-//import org.codehaus.groovy.grails.commons.ApplicationHolder
 import grails.test.GrailsUnitTestCase
-import groovy.mock.interceptor.MockFor
-import groovy.mock.interceptor.StubFor
+//import groovy.mock.interceptor.MockFor
+//import groovy.mock.interceptor.StubFor
 
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.Instant
-import org.junit.After
-import org.junit.Before
-import org.junit.Test
+//import org.junit.After
+//import org.junit.Before
+//import org.junit.Test
 import org.powertac.common.Broker
 import org.powertac.common.HourlyCharge
 import org.powertac.common.enumerations.PowerType
 import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.TariffTransactionType
+import org.powertac.common.interfaces.BrokerProxy
 import org.powertac.common.AbstractCustomer
 import org.powertac.common.CustomerInfo
 import org.powertac.common.Rate
@@ -49,8 +48,7 @@ import org.powertac.common.msg.VariableRateUpdate
 import org.powertac.common.TimeService
 
 /**
- * @author jcollins
- *
+ * @author John Collins
  */
 class TariffMarketServiceTests extends GrailsUnitTestCase
 {
@@ -62,18 +60,49 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   Instant start
   Instant exp
   Broker broker
-  int idCount = 0
   def txs = []
+  def msgs = []
 
   void setUp ()
   {
     super.setUp()
+    
+    // mock the brokerProxyService
+    def brokerProxy =
+      [sendMessage: { broker, message ->
+        msgs << message
+      },
+      sendMessages: { broker, messageList ->
+        messageList.each { message ->
+          msgs << message
+        }
+      },
+      broadcastMessage: { message ->
+        msgs << message
+      },
+      broadcastMessages: { messageList ->
+        messageList.each { message ->
+          msgs << message
+        }
+      },
+      registerBrokerTariffListener: { thing ->
+        println "tariff listener registration"
+      }] as BrokerProxy
+    tariffMarketService.brokerProxyService = brokerProxy
+
+    // clean up
     TariffSpecification.list()*.delete()
     Tariff.list()*.delete()
-	tariffMarketService.registrations = []
+    txs = []
+    msgs = []
+    tariffMarketService.registrations = []
     tariffMarketService.newTariffs = []
+    
+    // init time service
     start = new DateTime(2011, 1, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
     timeService.setCurrentTime(start)
+    
+    // create useful objects, set parameters
     broker = new Broker (username: 'testBroker', password: 'testPassword')
     assert broker.save()
     tariffMarketService.tariffPublicationFee = 42.0
@@ -106,12 +135,14 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   void testProcessTariffInvalid ()
   {
     tariffSpec.broker = null
-    TariffStatus status = tariffMarketService.processTariff(tariffSpec)
+    tariffMarketService.receiveMessage(tariffSpec)
+    TariffStatus status = msgs[0]
     assertNull("no broker, null status", status)
     
     tariffSpec.broker = broker
     tariffSpec.minDuration = null
-    status = tariffMarketService.processTariff(tariffSpec)
+    tariffMarketService.receiveMessage(tariffSpec)
+    status = msgs[0]
     assertNotNull("bad spec, non-null status", status)
     assertEquals("correct broker", broker, status.broker)
     assertEquals("correct spec ID", tariffSpec.id, status.tariffId)
@@ -123,7 +154,8 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // valid tariffSpec
   void testProcessTariffSpec ()
   {
-    TariffStatus status = tariffMarketService.processTariff(tariffSpec)
+    tariffMarketService.receiveMessage(tariffSpec)
+    TariffStatus status = msgs[0]
     // check the status return
     assertNotNull("non-null status", status)
     assertEquals("broker", tariffSpec.broker, status.broker)
