@@ -38,6 +38,7 @@ class AccountingService
   static transactional = true
   
   def timeService // autowire reference
+  def brokerProxyService
   
   def pendingTransactions = []
   
@@ -55,7 +56,9 @@ class AccountingService
                                                   price: price,
                                                   quantity: quantity,
                                                   postedTime: timeService.currentTime)
-    //mtx.id = idCount++
+    if (!mtx.validate()) {
+      mtx.errors.allErrors.each { println it.toString() }
+    }
     assert mtx.save()
     pendingTransactions.add(mtx)
     return mtx
@@ -119,15 +122,47 @@ class AccountingService
   @Synchronized
   void activate (Instant time, int phaseNumber)
   {
+    def brokerMsg = [:]
+    Broker.list().each { broker ->
+      brokerMsg[broker] = [] as Set
+    }
     // walk through the pending transactions and run the updates
     pendingTransactions.each { tx ->
-      processTransaction(tx)
+      brokerMsg[tx.broker] << tx
+      processTransaction(tx, brokerMsg[tx.broker])
     }
-    // TODO - send updated data to brokers
+    // for each broker, compute interest and send messages
+    BigDecimal rate = 0.0
+    Competition currentCompetition = Competition.currentCompetition()
+    if (currentCompetition == null) {
+      log.error("cannot find current competition")
+    }
+    else {
+      rate = currentCompetition.bankInterest/365.0
+    }
+    Broker.list().each { broker ->
+      // run interest payments at midnight
+      if (timeService.hourOfDay == 0) {
+        def brokerRate = rate
+        CashPosition cash = broker.cash
+        if (cash.balance >= 0.0) {
+          // rate on positive balance is 1/2 of negative
+          brokerRate /= 2.0
+        }
+        BigDecimal interest = cash.balance * brokerRate
+        brokerMsg[broker] << 
+            new BankTransaction(broker: broker, amount: interest,
+                                postedTime: timeService.currentTime)
+        cash.balance += interest
+      }
+      // add the cash position to the list and send messages
+      brokerMsg[broker] << broker.cash
+      brokerProxyService.sendMessages(broker, brokerMsg[broker] as List)
+    }    
   }
   
   // process a tariff transaction
-  private void processTransaction (TariffTransaction tx)
+  private void processTransaction (TariffTransaction tx, Set messages)
   {
     CashPosition cash = tx.broker.cash
     cash.deposit tx.charge
@@ -137,7 +172,7 @@ class AccountingService
   }
   
   // process a market transaction
-  private void processTransaction (MarketTransaction tx)
+  private void processTransaction (MarketTransaction tx, Set messages)
   {
     Broker broker = tx.broker
     CashPosition cash = broker.cash
@@ -147,7 +182,9 @@ class AccountingService
         MarketPosition.findByBrokerAndTimeslot(broker, tx.timeslot)
     if (mkt == null) {
       mkt = new MarketPosition(broker: broker, timeslot: tx.timeslot)
-      mkt.validate()
+      if (!mkt.validate()) {
+        mkt.errors.allErrors.each { println it.toString() }
+      }
       assert mkt.save()
       println "New MarketPosition(${broker.username}, ${tx.timeslot.serialNumber}): ${mkt.id}"
       broker.addToMarketPositions(mkt)
@@ -158,6 +195,7 @@ class AccountingService
     }
     mkt.updateBalance(tx.quantity)
     assert mkt.save()
+    messages << mkt
     println "MarketPosition count = ${MarketPosition.count()}"
   }
 }
