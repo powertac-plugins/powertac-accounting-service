@@ -200,11 +200,11 @@ class AbstractCustomerTests extends GroovyTestCase
     tariffMarketService.processTariff(tsc1)
     tariffMarketService.processTariff(tsc2)
     tariffMarketService.processTariff(tsc3)
-    Tariff tc1 = Tariff.get(tsc1.id)
+    Tariff tc1 = Tariff.findBySpecId(tsc1.id)
     assertNotNull("first tariff found", tc1)
-    Tariff tc2 = Tariff.get(tsc2.id)
+    Tariff tc2 = Tariff.findBySpecId(tsc2.id)
     assertNotNull("second tariff found", tc2)
-    Tariff tc3 = Tariff.get(tsc3.id)
+    Tariff tc3 = Tariff.findBySpecId(tsc3.id)
     assertNotNull("third tariff found", tc3)
     
     // make sure we have three active tariffs
@@ -212,114 +212,112 @@ class AbstractCustomerTests extends GroovyTestCase
     assertEquals("4 consumption tariffs", 4, tclist.size())
     assertEquals("three transaction", 3, TariffTransaction.count())
 	
-//	customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType),true)
+//    customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType),true)
 	
-	customer.subscribe(tc1, 3)
-	customer.subscribe(tc2, 33)
-	customer.subscribe(tc3, 32)
-	
-	assertEquals("4 Subscriptions for customer", 4, customer.subscriptions?.size())
-	
-	timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
-	TariffRevoke tex = new TariffRevoke(tariffId: tc2.id, broker: tc2.broker)
-	def status = tariffMarketService.processTariff(tex)
-	assertNotNull("non-null status", status)
-	assertEquals("success", TariffStatus.Status.success, status.status)
-	assertTrue("tariff revoked", tc2.isRevoked())
-	
-	// should now be just two active tariffs
-	tclist = tariffMarketService.getActiveTariffList(PowerType.CONSUMPTION)
-	assertEquals("3 consumption tariffs", 3, tclist.size())
-	
-	// retrieve Charley's revoked-subscription list
-	def revokedCustomer = tariffMarketService.getRevokedSubscriptionList(customer)
-	assertEquals("one item in list", 1, revokedCustomer.size())
-	assertEquals("it's the correct one", TariffSubscription.findByTariffAndCustomer(tc2,customer), revokedCustomer[0])
-	
-	customer.checkRevokedSubscriptions()
-	
-	assertEquals("3 Subscriptions for customer", 3, customer.subscriptions?.size())
+    customer.subscribe(tc1, 3)
+    customer.subscribe(tc2, 33)
+    customer.subscribe(tc3, 32)
 
-	}
+    assertEquals("4 Subscriptions for customer", 4, customer.subscriptions?.size())
+
+    timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
+    TariffRevoke tex = new TariffRevoke(tariffId: tsc2.id, broker: tc2.broker)
+    def status = tariffMarketService.processTariff(tex)
+    assertNotNull("non-null status", status)
+    assertEquals("success", TariffStatus.Status.success, status.status)
+    assertTrue("tariff revoked", tc2.isRevoked())
+
+    // should now be just two active tariffs
+    tclist = tariffMarketService.getActiveTariffList(PowerType.CONSUMPTION)
+    assertEquals("3 consumption tariffs", 3, tclist.size())
+
+    // retrieve Charley's revoked-subscription list
+    def revokedCustomer = tariffMarketService.getRevokedSubscriptionList(customer)
+    assertEquals("one item in list", 1, revokedCustomer.size())
+    assertEquals("it's the correct one", TariffSubscription.findByTariffAndCustomer(tc2,customer), revokedCustomer[0])
+
+    customer.checkRevokedSubscriptions()
+
+    assertEquals("3 Subscriptions for customer", 3, customer.subscriptions?.size())
+  }
   
-  void testTariffPublication() {
-		
-	  // test competitionControl registration
-	  def registrationThing = null
-	  def registrationPhase = -1
-	  def competitionControlService =
-		  [registerTimeslotPhase: { thing, phase ->
-			registrationThing = thing
-			registrationPhase = phase
-		  }] as CompetitionControl
-	  
-	  tariffMarketService.registrations = []
-	  tariffMarketService.newTariffs = []
-	  
-	  tariffMarketService.competitionControlService = competitionControlService
-	  tariffMarketService.afterPropertiesSet()
-	  //assertEquals("correct thing", tariffMarketService, registrationThing)
-	  assertEquals("correct phase", tariffMarketService.simulationPhase, registrationPhase)
-	
-	  start = new DateTime(2011, 1, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
-	  
-	  customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, powerTypes: [PowerType.CONSUMPTION])
-	  customerInfo.save()
-	  customer = new AbstractCustomer(CustomerInfo: customerInfo)
-	  customer.init()
-	  customer.subscribeDefault()
-	  customer.save()
-   	  
-	  // current time is noon. Set pub interval to 3 hours.
-	  tariffMarketService.publicationInterval = 3 // hours
-	  assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
-	
-	  assertEquals("one registration", 1, tariffMarketService.registrations.size())
-	  assertEquals("no tariffs at 12:00", 0, customer.publishedTariffs.size())
-	  // publish some tariffs over a period of three hours, check for publication
-	  def tsc1 = new TariffSpecification(broker: broker1,
-		  expiration: new Instant(start.millis + TimeService.DAY),
-		  minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-	  Rate r1 = new Rate(value: 0.222)
-	  tsc1.addToRates(r1)
-	  tariffMarketService.processTariff(tsc1)
-	  timeService.currentTime += TimeService.HOUR
-	  // it's 13:00
-	  tariffMarketService.activate(timeService.currentTime, 2)
-	  assertEquals("no tariffs at 13:00", 0, customer.publishedTariffs.size())
-	  
-	  def tsc2 = new TariffSpecification(broker: broker1,
-		  expiration: new Instant(start.millis + TimeService.DAY * 2),
-		  minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-	  tsc2.addToRates(r1)
-	  tariffMarketService.processTariff(tsc2)
-	  def tsc3 = new TariffSpecification(broker: broker1,
-		  expiration: new Instant(start.millis + TimeService.DAY * 3),
-		  minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
-	  tsc3.addToRates(r1)
-	  tariffMarketService.processTariff(tsc3)
-	  timeService.currentTime += TimeService.HOUR
-	  // it's 14:00
-	  tariffMarketService.activate(timeService.currentTime, 2)
-	  assertEquals("no tariffs at 14:00", 0, customer.publishedTariffs.size())
- 
-	  def tsp1 = new TariffSpecification(broker: broker1,
-		  expiration: new Instant(start.millis + TimeService.DAY),
-		  minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
-	  def tsp2 = new TariffSpecification(broker: broker1,
-		  expiration: new Instant(start.millis + TimeService.DAY * 2),
-		  minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
-	  Rate r2 = new Rate(value: 0.119)
-	  tsp1.addToRates(r2)
-	  tsp2.addToRates(r2)
-	  tariffMarketService.processTariff(tsp1)
-	  tariffMarketService.processTariff(tsp2)
-	  assertEquals("five tariffs", 6, Tariff.count())
-	  timeService.currentTime += TimeService.HOUR
-	  // it's 15:00 - time to publish
-	  tariffMarketService.activate(timeService.currentTime, 2)
-	  assertEquals("5 tariffs at 15:00", 5, customer.publishedTariffs.size())
-	  assertEquals("newTariffs list is again empty", 0, tariffMarketService.newTariffs.size())
-	}
- 
+  void testTariffPublication() 
+  {
+    // test competitionControl registration
+    def registrationThing = null
+    def registrationPhase = -1
+    def competitionControlService =
+        [registerTimeslotPhase: { thing, phase ->
+            registrationThing = thing
+            registrationPhase = phase
+          }] as CompetitionControl
+
+    tariffMarketService.registrations = []
+    tariffMarketService.newTariffs = []
+
+    tariffMarketService.competitionControlService = competitionControlService
+    tariffMarketService.afterPropertiesSet()
+    //assertEquals("correct thing", tariffMarketService, registrationThing)
+    assertEquals("correct phase", tariffMarketService.simulationPhase, registrationPhase)
+
+    start = new DateTime(2011, 1, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
+
+    customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, powerTypes: [PowerType.CONSUMPTION])
+    customerInfo.save()
+    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer.init()
+    customer.subscribeDefault()
+    customer.save()
+
+    // current time is noon. Set pub interval to 3 hours.
+    tariffMarketService.publicationInterval = 3 // hours
+    assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
+
+    assertEquals("one registration", 1, tariffMarketService.registrations.size())
+    assertEquals("no tariffs at 12:00", 0, customer.publishedTariffs.size())
+    // publish some tariffs over a period of three hours, check for publication
+    def tsc1 = new TariffSpecification(broker: broker1,
+        expiration: new Instant(start.millis + TimeService.DAY),
+        minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
+    Rate r1 = new Rate(value: 0.222)
+    tsc1.addToRates(r1)
+    tariffMarketService.processTariff(tsc1)
+    timeService.currentTime += TimeService.HOUR
+    // it's 13:00
+    tariffMarketService.activate(timeService.currentTime, 2)
+    assertEquals("no tariffs at 13:00", 0, customer.publishedTariffs.size())
+
+    def tsc2 = new TariffSpecification(broker: broker1,
+        expiration: new Instant(start.millis + TimeService.DAY * 2),
+        minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
+    tsc2.addToRates(r1)
+    tariffMarketService.processTariff(tsc2)
+    def tsc3 = new TariffSpecification(broker: broker1,
+        expiration: new Instant(start.millis + TimeService.DAY * 3),
+        minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
+    tsc3.addToRates(r1)
+    tariffMarketService.processTariff(tsc3)
+    timeService.currentTime += TimeService.HOUR
+    // it's 14:00
+    tariffMarketService.activate(timeService.currentTime, 2)
+    assertEquals("no tariffs at 14:00", 0, customer.publishedTariffs.size())
+
+    def tsp1 = new TariffSpecification(broker: broker1,
+        expiration: new Instant(start.millis + TimeService.DAY),
+        minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
+    def tsp2 = new TariffSpecification(broker: broker1,
+        expiration: new Instant(start.millis + TimeService.DAY * 2),
+        minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
+    Rate r2 = new Rate(value: 0.119)
+    tsp1.addToRates(r2)
+    tsp2.addToRates(r2)
+    tariffMarketService.processTariff(tsp1)
+    tariffMarketService.processTariff(tsp2)
+    assertEquals("five tariffs", 6, Tariff.count())
+    timeService.currentTime += TimeService.HOUR
+    // it's 15:00 - time to publish
+    tariffMarketService.activate(timeService.currentTime, 2)
+    assertEquals("5 tariffs at 15:00", 5, customer.publishedTariffs.size())
+    assertEquals("newTariffs list is again empty", 0, tariffMarketService.newTariffs.size())
+  }
 }

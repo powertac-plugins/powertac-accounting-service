@@ -349,7 +349,7 @@ class TariffMarketService
                                      status: TariffStatus.Status.invalidUpdate,
                                      message: "update: ${update.errors.allErrors}")]
     }
-    Tariff tariff = Tariff.get(update.tariffId)
+    Tariff tariff = Tariff.findBySpecId(update.tariffId)
     if (tariff == null) {
       log.error("update - no such tariff ${update.tariffId}, broker ${update.brokerId}")
       return [null, new TariffStatus(broker: update.broker,
