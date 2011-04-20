@@ -82,10 +82,12 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     
     TariffSpecification.list()*.delete()
     Tariff.list()*.delete()
-    broker1 = new Broker(username: "Joe")
-    broker1.save()
-    broker2 = new Broker(username: "Anna")
-    broker2.save()
+    Broker.list()*.delete()
+    CustomerInfo.list()*.delete()
+    broker1 = new Broker(username: "Joe", password: "foo")
+    assert broker1.save()
+    broker2 = new Broker(username: "Anna", password: "bar")
+    assert broker2.save()
   
   //  now = new DateTime(2011, 1, 10, 0, 0, 0, 0, DateTimeZone.UTC)
   //  timeService.currentTime = now.toInstant()
@@ -144,14 +146,14 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     
     assertFalse("Customer consumed power", customer.subscriptions?.totalUsage == 0)
     
-    assertEquals("Tariff Transaction Created", 100, TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
+    assertEquals("Tariff Transaction Created", 1, TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
     
     Thread.sleep(5000) // 10 seconds -> 1 hour sim time
     timeService.updateTime()
     
     assertFalse("Customer consumed power", customer.subscriptions?.totalUsage == 0)
     
-    assertEquals("Tariff Transaction Created", 200, TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
+    assertEquals("Tariff Transaction Created", 2, TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
     
   }
   
@@ -223,7 +225,7 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     Thread.sleep(5000)
     timeService.updateTime()
     
-    TariffRevoke tex3 = new TariffRevoke(tariffId: tsc3.id, broker: tc1.broker)
+    TariffRevoke tex3 = new TariffRevoke(tariffId: tsc3.id, broker: tsc3.broker)
     def status3 = tariffMarketService.processTariff(tex3)
     assertNotNull("non-null status", status3)
     assertEquals("success", TariffStatus.Status.success, status3.status)
@@ -244,7 +246,7 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     Thread.sleep(5000)
     timeService.updateTime()
     
-    TariffRevoke tex2 = new TariffRevoke(tariffId: tsc1.id, broker: tc1.broker)
+    TariffRevoke tex2 = new TariffRevoke(tariffId: tsc1.id, broker: tsc1.broker)
     def status2 = tariffMarketService.processTariff(tex2)
     assertNotNull("non-null status", status2)
     assertEquals("success", TariffStatus.Status.success, status2.status)
@@ -285,7 +287,7 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     customer.save()
      
     // current time is noon. Set pub interval to 3 hours.
-    tariffMarketService.publicationInterval = 3 // hours
+    tariffMarketService.configuration.configuration['publicationInterval'] = '3' // hours
     assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
   
     assertEquals("one registration", 1, tariffMarketService.registrations.size())

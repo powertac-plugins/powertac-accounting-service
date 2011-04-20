@@ -47,8 +47,6 @@ class AccountingService
   // read this from plugin config
   PluginConfig configuration
 
-  // transaction ID counter
-  //int idCount = 0
   int simulationPhase = 3
   
   /**
@@ -90,8 +88,10 @@ class AccountingService
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
             CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
-    //ttx.id = idCount++
-    assert ttx.save()
+    if (!ttx.validate()) {
+      ttx.errors.allErrors.each {log.error it.toString()}
+    }
+    ttx.save()
     pendingTransactions.add(ttx)
     return ttx
   }

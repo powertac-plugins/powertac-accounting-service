@@ -136,7 +136,7 @@ class AbstractCustomerTests extends GroovyTestCase
 
     assertFalse("Customer consumed power", customer.subscriptions?.totalUsage == 0)
 
-    assertEquals("Tariff Transaction Created", 100,
+    assertEquals("Tariff Transaction Created", 1,
                  TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
   }
 
