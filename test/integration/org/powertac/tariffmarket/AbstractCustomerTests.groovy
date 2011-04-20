@@ -270,7 +270,7 @@ class AbstractCustomerTests extends GroovyTestCase
     customer.save()
 
     // current time is noon. Set pub interval to 3 hours.
-    tariffMarketService.publicationInterval = 3 // hours
+    tariffMarketService.configuration.configuration['publicationInterval'] = '3' // hours
     assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
 
     assertEquals("one registration", 1, tariffMarketService.registrations.size())

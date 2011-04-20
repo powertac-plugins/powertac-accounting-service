@@ -340,11 +340,13 @@ class AccountingServiceTests extends GroovyTestCase
   // interest should be paid/charged at midnight activation
   void testInterestPayment ()
   {
-    // need a Competition instance for interest calculation
-    Competition comp =
-        new Competition(name: "test", bankInterest: 0.12)
-    assert comp.save()
-    assertEquals("correct competition", comp, Competition.currentCompetition())
+    // need a PluginConfig instance for interest calculation
+    PluginConfig config = accountingService.configuration
+    assertNotNull("non-null config", config)
+    assertEquals("interest set by bootstrap", '0.0', config.configuration['bankInterest'])
+    
+    // set the interest to 12%
+    config.configuration['bankInterest'] = '0.12'
     
     // broker proxy
     def messages = [:]

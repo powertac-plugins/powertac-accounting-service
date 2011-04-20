@@ -105,8 +105,8 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     // create useful objects, set parameters
     broker = new Broker (username: 'testBroker', password: 'testPassword')
     assert broker.save()
-    tariffMarketService.tariffPublicationFee = 42.0
-    tariffMarketService.tariffRevocationFee = 420.0
+    tariffMarketService.configuration.configuration['tariffPublicationFee'] = '42.0'
+    tariffMarketService.configuration.configuration['tariffRevocationFee'] = '420.0'
     exp = new DateTime(2011, 3, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
     tariffSpec = new TariffSpecification(broker: broker, expiration: exp,
                                          minDuration: TimeService.WEEK * 8)
@@ -390,7 +390,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("correct phase", tariffMarketService.simulationPhase, registrationPhase)
         
     // current time is noon. Set pub interval to 3 hours.
-    tariffMarketService.publicationInterval = 3 // hours
+    tariffMarketService.configuration.configuration['publicationInterval'] = '3' // hours
     assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
     // register a NewTariffListener 
     def publishedTariffs = []
@@ -408,6 +408,12 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     Rate r1 = new Rate(value: 0.222)
     tsc1.addToRates(r1)
     tariffMarketService.processTariff(tsc1)
+    def tsc1a = new TariffSpecification(broker: broker,
+        expiration: new Instant(start.millis + TimeService.DAY),
+        minDuration: TimeService.WEEK * 8, powerType: PowerType.CONSUMPTION)
+    Rate r1a = new Rate(value: 0.223)
+    tsc1a.addToRates(r1a)
+    tariffMarketService.processTariff(tsc1a)
     timeService.currentTime += TimeService.HOUR
     // it's 13:00
     tariffMarketService.activate(timeService.currentTime, 2)
@@ -439,7 +445,11 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     tsp2.addToRates(r2)
     tariffMarketService.processTariff(tsp1)
     tariffMarketService.processTariff(tsp2)
-    assertEquals("five tariffs", 5, Tariff.count())
+    assertEquals("six tariffs", 6, Tariff.count())
+    
+    TariffRevoke tex = new TariffRevoke(tariffId: tsc1a.id, broker: tsc1a.broker)
+    tariffMarketService.processTariff(tex)
+
     timeService.currentTime += TimeService.HOUR
     // it's 15:00 - time to publish
     tariffMarketService.activate(timeService.currentTime, 2)
