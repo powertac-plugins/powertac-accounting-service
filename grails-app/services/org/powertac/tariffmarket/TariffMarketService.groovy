@@ -22,6 +22,7 @@ import org.joda.time.Instant
 import org.joda.time.DateTimeZone
 import org.powertac.common.AbstractCustomer
 import org.powertac.common.Broker
+import org.powertac.common.PluginConfig
 import org.powertac.common.TimeService
 import org.powertac.common.Tariff
 import org.powertac.common.TariffSpecification
@@ -59,14 +60,12 @@ class TariffMarketService
   CompetitionControl competitionControlService
   BrokerProxy brokerProxyService
   
-  def defaultTariff = [:]
-  def newTariffs = []
+  Map defaultTariff = [:]
+  List newTariffs = []
 
-  // TODO - read this from somewhere appropriate
-  BigDecimal tariffPublicationFee = 0.0
-  BigDecimal tariffRevocationFee = 0.0
+  // read this from plugin config
+  PluginConfig configuration
   int simulationPhase = 2
-  int publicationInterval = 6 // hours between tariff publication events
   
   /**
    * Register for phase 2 activation, to drive tariff publication
@@ -75,6 +74,22 @@ class TariffMarketService
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
     brokerProxyService?.registerBrokerTariffListener(this)
+  }
+  
+  // ----------------- Configuration access ------------------
+  BigDecimal getTariffPublicationFee ()
+  {
+    return configuration.configuration['tariffPublicationFee'].toBigDecimal()
+  }
+  
+  BigDecimal getTariffRevocationFee ()
+  {
+    return configuration.configuration['tariffRevocationFee'].toBigDecimal()
+  }
+  
+  int getPublicationInterval ()
+  {
+    return configuration.configuration['publicationInterval'].toInteger()
   }
 
   // ----------------- Broker message API --------------------
@@ -241,9 +256,13 @@ class TariffMarketService
     long msec = timeService.currentTime.millis
     if (msec % (publicationInterval * TimeService.HOUR) == 0) {
       // time to publish
-      log.info "publishing ${newTariffs.size()} new tariffs"
-      registrations*.publishNewTariffs(newTariffs)
-      brokerProxyService?.broadcastMessages(newTariffs)
+      List publishedTariffs = newTariffs.findAll { tariff ->
+        tariff.state == Tariff.State.OFFERED ||
+        tariff.state == Tariff.State.ACTIVE
+      }
+      log.info "publishing ${publishedTariffs.size()} new tariffs"
+      registrations*.publishNewTariffs(publishedTariffs)
+      brokerProxyService?.broadcastMessages(publishedTariffs)
       newTariffs = []
     }
   }
@@ -349,7 +368,7 @@ class TariffMarketService
                                      status: TariffStatus.Status.invalidUpdate,
                                      message: "update: ${update.errors.allErrors}")]
     }
-    Tariff tariff = Tariff.get(update.tariffId)
+    Tariff tariff = Tariff.findBySpecId(update.tariffId)
     if (tariff == null) {
       log.error("update - no such tariff ${update.tariffId}, broker ${update.brokerId}")
       return [null, new TariffStatus(broker: update.broker,
