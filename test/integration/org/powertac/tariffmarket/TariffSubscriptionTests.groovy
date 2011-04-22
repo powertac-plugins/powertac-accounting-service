@@ -40,7 +40,7 @@ import org.powertac.common.enumerations.TariffTransactionType
 class TariffSubscriptionTests extends GrailsUnitTestCase 
 {
   def timeService  // autowire the time service
-  def tariffMarketService = 'tariffMarketService' // autowire the market
+  def tariffMarketService  // autowire the market
   
   Tariff tariff
   Broker broker

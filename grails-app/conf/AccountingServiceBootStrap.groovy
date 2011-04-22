@@ -8,13 +8,13 @@ class AccountingServiceBootStrap
   def init = { servletContext ->
     // create and configure PluginConfig instances for the two services
     PluginConfig accounting = 
-        new PluginConfig(pluginRoleName:'Accounting',
+        new PluginConfig(roleName:'Accounting',
           configuration: [bankInterest: '0.0'])
     accounting.save()
     accountingService.configuration = accounting
     
     PluginConfig tariffMarket =
-        new PluginConfig(pluginRoleName: 'TariffMarket',
+        new PluginConfig(roleName: 'TariffMarket',
           configuration: [tariffPublicationFee: '100.0',
                           tariffRevocationFee: '100.0',
                           publicationInterval: '6'])
