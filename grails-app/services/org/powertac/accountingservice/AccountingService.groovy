@@ -33,17 +33,29 @@ import groovy.transform.Synchronized
  */
 class AccountingService
     implements org.powertac.common.interfaces.Accounting,
-               org.powertac.common.interfaces.TimeslotPhaseProcessor
+               org.powertac.common.interfaces.TimeslotPhaseProcessor,
+               org.springframework.beans.factory.InitializingBean
 {
   static transactional = true
   
   def timeService // autowire reference
+  def competitionControlService
   def brokerProxyService
   
   def pendingTransactions = []
   
-  // transaction ID counter
-  //int idCount = 0
+  // read this from plugin config
+  PluginConfig configuration
+
+  int simulationPhase = 3
+  
+  /**
+   * Register for phase 3 activation, to drive tariff publication
+   */
+  void afterPropertiesSet ()
+  {
+    competitionControlService?.registerTimeslotPhase(this, simulationPhase)
+  }
 
   @Synchronized
   MarketTransaction addMarketTransaction (Broker broker,
@@ -76,8 +88,10 @@ class AccountingService
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
             CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
-    //ttx.id = idCount++
-    assert ttx.save()
+    if (!ttx.validate()) {
+      ttx.errors.allErrors.each {log.error it.toString()}
+    }
+    ttx.save()
     pendingTransactions.add(ttx)
     return ttx
   }
@@ -132,14 +146,7 @@ class AccountingService
       processTransaction(tx, brokerMsg[tx.broker])
     }
     // for each broker, compute interest and send messages
-    BigDecimal rate = 0.0
-    Competition currentCompetition = Competition.currentCompetition()
-    if (currentCompetition == null) {
-      log.error("cannot find current competition")
-    }
-    else {
-      rate = currentCompetition.bankInterest/365.0
-    }
+    BigDecimal rate = getDailyInterest()
     Broker.list().each { broker ->
       // run interest payments at midnight
       if (timeService.hourOfDay == 0) {
@@ -159,6 +166,18 @@ class AccountingService
       brokerMsg[broker] << broker.cash
       brokerProxyService.sendMessages(broker, brokerMsg[broker] as List)
     }    
+  }
+
+  private Number getDailyInterest()
+  {
+    BigDecimal rate = 0.0
+    if (configuration == null) {
+      log.error("cannot find configuration")
+    }
+    else {
+      rate = configuration.configuration['bankInterest'].toBigDecimal()/365.0
+    }
+    return rate
   }
   
   // process a tariff transaction
