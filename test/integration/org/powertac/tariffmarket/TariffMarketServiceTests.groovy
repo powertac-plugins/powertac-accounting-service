@@ -33,6 +33,7 @@ import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.TariffTransactionType
 import org.powertac.common.interfaces.BrokerProxy
 import org.powertac.common.AbstractCustomer
+import org.powertac.common.Competition;
 import org.powertac.common.CustomerInfo
 import org.powertac.common.Rate
 import org.powertac.common.Tariff
@@ -46,6 +47,7 @@ import org.powertac.common.msg.TariffRevoke
 import org.powertac.common.msg.TariffStatus
 import org.powertac.common.msg.VariableRateUpdate
 import org.powertac.common.TimeService
+import org.powertac.common.PluginConfig
 
 /**
  * @author John Collins
@@ -54,6 +56,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
 {
   def timeService // dependency injection
   TariffMarketService tariffMarketService
+  def tariffMarketInitializationService
   
   TariffSpecification tariffSpec // instance var
 
@@ -62,11 +65,22 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   Broker broker
   def txs = []
   def msgs = []
-
+  Competition comp
+  
   void setUp ()
   {
     super.setUp()
+    PluginConfig.findByRoleName('TariffMarket')?.delete()
     
+    // create a Competition, needed for initialization
+    if (Competition.count() == 0) {
+      comp = new Competition(name: 'accounting-test')
+      assert comp.save()
+    }
+    else {
+      comp = Competition.list().first()
+    }
+
     // mock the brokerProxyService
     def brokerProxy =
       [sendMessage: { broker, message ->
@@ -105,8 +119,6 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     // create useful objects, set parameters
     broker = new Broker (username: 'testBroker', password: 'testPassword')
     assert broker.save()
-    tariffMarketService.configuration.configuration['tariffPublicationFee'] = '42.0'
-    tariffMarketService.configuration.configuration['tariffRevocationFee'] = '420.0'
     exp = new DateTime(2011, 3, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
     tariffSpec = new TariffSpecification(broker: broker, expiration: exp,
                                          minDuration: TimeService.WEEK * 8)
@@ -121,10 +133,37 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   {
     super.tearDown()
   }
+  
+  void initializeService () {
+    tariffMarketInitializationService.setDefaults()
+    PluginConfig config = PluginConfig.findByRoleName('TariffMarket')
+    config.configuration['tariffPublicationFee'] = '42.0'
+    config.configuration['tariffRevocationFee'] = '420.0'
+    tariffMarketInitializationService.initialize(comp, [])
+  }
+  
+  void testNormalInitialization ()
+  {
+    tariffMarketInitializationService.setDefaults()
+    PluginConfig config = PluginConfig.findByRoleName('TariffMarket')
+    assertNotNull("config created correctly", config)
+    def result = tariffMarketInitializationService.initialize(comp, [])
+    assertEquals("correct return value", 'TariffMarket', result)
+    assertEquals("correct publication fee", 100.0, tariffMarketService.getTariffPublicationFee(), 1e-6)
+  }
+  
+  void testBogusInitialization ()
+  {
+    PluginConfig config = PluginConfig.findByRoleName('TariffMarket')
+    assertNull("config not created", config)
+    def result = tariffMarketInitializationService.initialize(comp, [])
+    assertEquals("failure return value", 'fail', result)
+  }
 
   // null tariffSpec
   void testProcessTariffSpecJunk ()
   {
+    initializeService()
     TariffStatus status = tariffMarketService.processTariff("abc")
     assertNull("should be null status", status)
     status = tariffMarketService.processTariff(null)
@@ -134,6 +173,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // invalid tariffSpec
   void testProcessTariffInvalid ()
   {
+    initializeService()
     tariffSpec.broker = null
     tariffMarketService.receiveMessage(tariffSpec)
     TariffStatus status = msgs[0]
@@ -154,6 +194,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // valid tariffSpec
   void testProcessTariffSpec ()
   {
+    initializeService()
     tariffMarketService.receiveMessage(tariffSpec)
     TariffStatus status = msgs[0]
     // check the status return
@@ -182,6 +223,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // bogus expiration
   void testProcessTariffExpireBogus ()
   {
+    initializeService()
     TariffStatus status = tariffMarketService.processTariff(tariffSpec)
     assertEquals("success", TariffStatus.Status.success, status.status)
     Tariff tf = Tariff.findBySpecId(tariffSpec.id)
@@ -201,6 +243,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // null exp time
   void testProcessTariffExpireNull ()
   {
+    initializeService()
     TariffStatus status = tariffMarketService.processTariff(tariffSpec)
     assertEquals("success", TariffStatus.Status.success, status.status)
     Tariff tf = Tariff.findBySpecId(tariffSpec.id)
@@ -219,6 +262,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // normal expiration
   void testProcessTariffExpire ()
   {
+    initializeService()
     TariffStatus status = tariffMarketService.processTariff(tariffSpec)
     assertEquals("success", TariffStatus.Status.success, status.status)
     Tariff tf = Tariff.findBySpecId(tariffSpec.id)
@@ -242,6 +286,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // normal revoke
   void testProcessTariffRevoke ()
   {
+    initializeService()
     TariffStatus status = tariffMarketService.processTariff(tariffSpec)
     assertEquals("success", TariffStatus.Status.success, status.status)
     Tariff tf = Tariff.findBySpecId(tariffSpec.id)
@@ -258,6 +303,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // variable rate update - nominal case, 2 tariffs
   void testVariableRateUpdate ()
   {
+    initializeService()
     // what the broker does...
     TariffSpecification ts2 =
           new TariffSpecification(broker: broker, expiration: new DateTime(2011, 3, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant(),
@@ -314,6 +360,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // check evolution of active tariff list
   void testGetActiveTariffList ()
   {
+    initializeService()
     // initially, there should be no active tariffs
     assertEquals("no initial tariffs", 0,
           tariffMarketService.getActiveTariffList(PowerType.CONSUMPTION).size())
@@ -376,6 +423,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // test batch-publication of new tariffs
   void testBatchPublication ()
   {
+    initializeService()
     // test competitionControl registration
     def registrationThing = null
     def registrationPhase = -1
@@ -460,6 +508,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // create some subscriptions and then revoke a tariff
   void testGetRevokedSubscriptionList ()
   {    
+    initializeService()
     // create some tariffs
     def tsc1 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.DAY * 5),
@@ -538,15 +587,12 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("correct tariff", tc2, ttx.tariff)
     assertEquals("correct type", TariffTransactionType.REVOKE, ttx.txType)
     assertEquals("correct amount", 420.0, ttx.charge, 1e-6)
-    // make sure the revoke msg is in the output list
-    // this should be replaced with a check on an output channel.
-    //assertEquals("correct number of msgs queued", 4, tariffMarketService.broadcast.size())
-    //assertEquals("correct fourth element", tex, tariffMarketService.broadcast.remove(3))
   }
 
   // check default tariffs
   void testGetDefaultTariff ()
   {
+    initializeService()
     // set defaults for consumption and production
     def tsc1 = new TariffSpecification(broker: broker, 
           expiration: new Instant(start.millis + TimeService.WEEK),
@@ -574,5 +620,4 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("default production tariff", tp1, tariffMarketService.getDefaultTariff(PowerType.PRODUCTION))
     assertNull("no solar tariff", tariffMarketService.getDefaultTariff(PowerType.SOLAR_PRODUCTION))
   }
-
 }

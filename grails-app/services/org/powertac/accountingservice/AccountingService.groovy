@@ -88,9 +88,7 @@ class AccountingService
             postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
             CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
-    if (!ttx.validate()) {
-      ttx.errors.allErrors.each {log.error it.toString()}
-    }
+    log.info "addTtx broker: ${tariff.broker}"
     ttx.save()
     pendingTransactions.add(ttx)
     return ttx
@@ -142,6 +140,12 @@ class AccountingService
     }
     // walk through the pending transactions and run the updates
     pendingTransactions.each { tx ->
+      if (tx.broker == null) {
+        log.error "${tx} has null broker"
+      }
+      if (brokerMsg[tx.broker] == null) {
+        log.error "broker ${tx.broker} not in database"
+      }
       brokerMsg[tx.broker] << tx
       processTransaction(tx, brokerMsg[tx.broker])
     }

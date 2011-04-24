@@ -63,13 +63,14 @@ class AbstractCustomerTests extends GroovyTestCase
 
   protected void setUp()
   {
-	
     super.setUp()
     TariffSpecification.list()*.delete()
     Tariff.list()*.delete()
-    Broker.list()*.delete()
+    //Broker.list()*.delete()
+    Broker.findByUsername('Joe')?.delete()
     broker1 = new Broker(username: "Joe")
     broker1.save()
+    Broker.findByUsername('Anna')?.delete()
     broker2 = new Broker(username: "Anna")
     broker2.save()
 
