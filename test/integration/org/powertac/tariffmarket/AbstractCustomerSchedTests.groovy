@@ -98,8 +98,8 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     tariffMarketService.registrations = []
     tariffMarketService.newTariffs = []
     
-    TariffSpecification.list()*.delete()
-    Tariff.list()*.delete()
+    //TariffSpecification.list()*.delete()
+    //Tariff.list()*.delete()
     //Broker.list()*.delete()
     CustomerInfo.list()*.delete()
     Broker.findByUsername('Joe')?.delete()
