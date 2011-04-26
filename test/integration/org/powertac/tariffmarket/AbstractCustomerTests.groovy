@@ -29,6 +29,7 @@ import org.powertac.common.enumerations.PowerType
 import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.TariffTransactionType
 import org.powertac.common.AbstractCustomer
+import org.powertac.common.Competition;
 import org.powertac.common.CustomerInfo
 import org.powertac.common.Rate
 import org.powertac.common.Tariff
@@ -43,14 +44,16 @@ import org.powertac.common.msg.TariffStatus
 import org.powertac.common.msg.VariableRateUpdate
 import org.powertac.tariffmarket.TariffMarketService
 import org.powertac.common.TimeService
+import org.powertac.common.PluginConfig
 
 
 class AbstractCustomerTests extends GroovyTestCase 
 {
   def timeService  // autowire the time service
   def tariffMarketService // autowire the market
+  def tariffMarketInitializationService
 
-  
+  Competition comp
   Tariff tariff
   TariffSpecification defaultTariffSpec
   Broker broker1
@@ -64,6 +67,16 @@ class AbstractCustomerTests extends GroovyTestCase
   protected void setUp()
   {
     super.setUp()
+    
+    // create a Competition, needed for initialization
+    if (Competition.count() == 0) {
+      comp = new Competition(name: 'accounting-test')
+      assert comp.save()
+    }
+    else {
+      comp = Competition.list().first()
+    }
+
     TariffSpecification.list()*.delete()
     Tariff.list()*.delete()
     //Broker.list()*.delete()
@@ -76,6 +89,11 @@ class AbstractCustomerTests extends GroovyTestCase
 
     now = new DateTime(2011, 1, 10, 0, 0, 0, 0, DateTimeZone.UTC)
     timeService.currentTime = now.toInstant()
+    
+    // initialize the tariff market
+    PluginConfig.findByRoleName('TariffMarket')?.delete()
+    tariffMarketInitializationService.setDefaults()
+    tariffMarketInitializationService.initialize(comp, ['AccountingService'])
 
     exp = new Instant(now.millis + TimeService.WEEK * 10)
     TariffSpecification tariffSpec =

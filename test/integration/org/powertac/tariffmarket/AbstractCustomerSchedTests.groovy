@@ -93,7 +93,7 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     // initialize the tariff market
     PluginConfig.findByRoleName('TariffMarket')?.delete()
     tariffMarketInitializationService.setDefaults()
-    tariffMarketInitializationService.initialize(comp, [])
+    tariffMarketInitializationService.initialize(comp, ['AccountingService'])
     
     tariffMarketService.registrations = []
     tariffMarketService.newTariffs = []

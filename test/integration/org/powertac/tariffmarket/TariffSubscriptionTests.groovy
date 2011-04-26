@@ -26,7 +26,6 @@ import org.powertac.common.Broker
 import org.powertac.common.AbstractCustomer
 import org.powertac.common.CustomerInfo
 import org.powertac.common.MarketTransaction
-import org.powertac.common.Product
 import org.powertac.common.Rate
 import org.powertac.common.Tariff
 import org.powertac.common.TariffSpecification

@@ -139,7 +139,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     PluginConfig config = PluginConfig.findByRoleName('TariffMarket')
     config.configuration['tariffPublicationFee'] = '42.0'
     config.configuration['tariffRevocationFee'] = '420.0'
-    tariffMarketInitializationService.initialize(comp, [])
+    tariffMarketInitializationService.initialize(comp, ['AccountingService'])
   }
   
   void testNormalInitialization ()
@@ -147,7 +147,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     tariffMarketInitializationService.setDefaults()
     PluginConfig config = PluginConfig.findByRoleName('TariffMarket')
     assertNotNull("config created correctly", config)
-    def result = tariffMarketInitializationService.initialize(comp, [])
+    def result = tariffMarketInitializationService.initialize(comp, ['AccountingService'])
     assertEquals("correct return value", 'TariffMarket', result)
     assertEquals("correct publication fee", 100.0, tariffMarketService.getTariffPublicationFee(), 1e-6)
   }
@@ -156,8 +156,11 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   {
     PluginConfig config = PluginConfig.findByRoleName('TariffMarket')
     assertNull("config not created", config)
-    def result = tariffMarketInitializationService.initialize(comp, [])
+    def result = tariffMarketInitializationService.initialize(comp, ['AccountingService'])
     assertEquals("failure return value", 'fail', result)
+    tariffMarketInitializationService.setDefaults()
+    result = tariffMarketInitializationService.initialize(comp, [])
+    assertNull("needs AccountingService in the list", result)
   }
 
   // null tariffSpec

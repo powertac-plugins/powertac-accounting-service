@@ -31,24 +31,26 @@ class TariffMarketInitializationService
   @Override
   public void setDefaults ()
   {
-    // TODO Auto-generated method stub
-    PluginConfig tariffMarket =
+    PluginConfig tariffMarketConfig =
         new PluginConfig(roleName: 'TariffMarket',
                          configuration: [tariffPublicationFee: '100.0',
                                          tariffRevocationFee: '100.0',
                                          publicationInterval: '6'])
-    tariffMarket.save()
+    tariffMarketConfig.save()
   }
   
   @Override
   public String initialize (Competition competition, List<String> completedInits)
   {
-    PluginConfig tariffMarket = PluginConfig.findByRoleName('TariffMarket')
-    if (tariffMarket == null) {
+    if (!completedInits.find{'AccountingService' == it}) {
+      return null
+    }
+    PluginConfig tariffMarketConfig = PluginConfig.findByRoleName('TariffMarket')
+    if (tariffMarketConfig == null) {
       log.error "PluginConfig for TariffMarket does not exist"
     }
     else {
-      tariffMarketService.configuration = tariffMarket
+      tariffMarketService.configuration = tariffMarketConfig
       return 'TariffMarket'
     }
     return 'fail'

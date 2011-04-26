@@ -136,18 +136,21 @@ class AccountingService
   {
     def brokerMsg = [:]
     Broker.list().each { broker ->
-      brokerMsg[broker] = [] as Set
+      // use username here rather than broker, because it seems that
+      // the broker instance in the transaction and the broker instance
+      // from the list are not necessarily the same object...
+      brokerMsg[broker.username] = [] as Set
     }
     // walk through the pending transactions and run the updates
     pendingTransactions.each { tx ->
       if (tx.broker == null) {
         log.error "${tx} has null broker"
       }
-      if (brokerMsg[tx.broker] == null) {
+      if (brokerMsg[tx.broker.username] == null) {
         log.error "broker ${tx.broker} not in database"
       }
-      brokerMsg[tx.broker] << tx
-      processTransaction(tx, brokerMsg[tx.broker])
+      brokerMsg[tx.broker.username] << tx
+      processTransaction(tx, brokerMsg[tx.broker.username])
     }
     // for each broker, compute interest and send messages
     BigDecimal rate = getDailyInterest()
@@ -161,14 +164,14 @@ class AccountingService
           brokerRate /= 2.0
         }
         BigDecimal interest = cash.balance * brokerRate
-        brokerMsg[broker] << 
+        brokerMsg[broker.username] << 
             new BankTransaction(broker: broker, amount: interest,
                                 postedTime: timeService.currentTime)
         cash.balance += interest
       }
       // add the cash position to the list and send messages
-      brokerMsg[broker] << broker.cash
-      brokerProxyService.sendMessages(broker, brokerMsg[broker] as List)
+      brokerMsg[broker.username] << broker.cash
+      brokerProxyService.sendMessages(broker, brokerMsg[broker.username] as List)
     }    
   }
 
