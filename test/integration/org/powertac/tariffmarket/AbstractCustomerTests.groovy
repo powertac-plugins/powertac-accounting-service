@@ -317,7 +317,6 @@ class AbstractCustomerTests extends GroovyTestCase
           }] as CompetitionControl
 
     tariffMarketService.registrations = []
-    tariffMarketService.newTariffs = []
 
     tariffMarketService.competitionControlService = competitionControlService
     tariffMarketService.afterPropertiesSet()
@@ -335,7 +334,7 @@ class AbstractCustomerTests extends GroovyTestCase
 
     // current time is noon. Set pub interval to 3 hours.
     tariffMarketService.configuration.configuration['publicationInterval'] = '3' // hours
-    assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
+    //assertEquals("newTariffs list is empty", 0, Tariff.findAllByState(Tariff.State.PENDING).size())
 
     assertEquals("one registration", 1, tariffMarketService.registrations.size())
     assertEquals("no tariffs at 12:00", 0, customer.publishedTariffs.size())
@@ -381,7 +380,7 @@ class AbstractCustomerTests extends GroovyTestCase
     timeService.currentTime += TimeService.HOUR
     // it's 15:00 - time to publish
     tariffMarketService.activate(timeService.currentTime, 2)
-    assertEquals("5 tariffs at 15:00", 5, customer.publishedTariffs.size())
-    assertEquals("newTariffs list is again empty", 0, tariffMarketService.newTariffs.size())
+    assertEquals("6 tariffs at 15:00", 6, customer.publishedTariffs.size())
+    assertEquals("newTariffs list is again empty", 0, Tariff.findAllByState(Tariff.State.PENDING).size())
   }
 }

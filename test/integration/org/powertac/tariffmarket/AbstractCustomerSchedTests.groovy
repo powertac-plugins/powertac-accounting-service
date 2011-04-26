@@ -96,10 +96,10 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     tariffMarketInitializationService.initialize(comp, ['AccountingService'])
     
     tariffMarketService.registrations = []
-    tariffMarketService.newTariffs = []
+    //tariffMarketService.newTariffs = []
     
-    //TariffSpecification.list()*.delete()
-    //Tariff.list()*.delete()
+    TariffSpecification.list()*.delete()
+    Tariff.list()*.delete()
     //Broker.list()*.delete()
     CustomerInfo.list()*.delete()
     Broker.findByUsername('Joe')?.delete()
@@ -308,7 +308,7 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
      
     // current time is noon. Set pub interval to 3 hours.
     tariffMarketService.configuration.configuration['publicationInterval'] = '3' // hours
-    assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
+    //assertEquals("newTariffs list is empty", 0, Tariff.findAllByState(Tariff.State.PENDING).size())
   
     assertEquals("one registration", 1, tariffMarketService.registrations.size())
     assertEquals("no tariffs at 12:00", 0, customer.publishedTariffs.size())

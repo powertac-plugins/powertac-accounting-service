@@ -61,7 +61,7 @@ class TariffMarketService
   BrokerProxy brokerProxyService
   
   Map defaultTariff = [:]
-  List newTariffs = []
+  //List newTariffs = []
 
   // read this from plugin config
   PluginConfig configuration
@@ -152,7 +152,7 @@ class TariffMarketService
       tariff.save()
       broker.addToTariffs(tariff)
       broker.save()
-      newTariffs << tariff
+      //newTariffs << tariff
       TariffTransaction pub = 
           accountingService.addTariffTransaction(TariffTransactionType.PUBLISH,
               tariff, null, 0, 0.0, tariffPublicationFee)
@@ -256,14 +256,14 @@ class TariffMarketService
     long msec = timeService.currentTime.millis
     if (msec % (publicationInterval * TimeService.HOUR) == 0) {
       // time to publish
-      List publishedTariffs = newTariffs.findAll { tariff ->
-        tariff.state == Tariff.State.OFFERED ||
-        tariff.state == Tariff.State.ACTIVE
-      }
+      List publishedTariffs = Tariff.findAllByState(Tariff.State.PENDING)
       log.info "publishing ${publishedTariffs.size()} new tariffs"
+      publishedTariffs.each { tariff ->
+        tariff.state = Tariff.State.OFFERED
+        tariff.save()
+      }
       registrations*.publishNewTariffs(publishedTariffs)
       brokerProxyService?.broadcastMessages(publishedTariffs)
-      newTariffs = []
     }
   }
 

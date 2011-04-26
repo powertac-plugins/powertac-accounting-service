@@ -110,7 +110,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     txs = []
     msgs = []
     tariffMarketService.registrations = []
-    tariffMarketService.newTariffs = []
+    //tariffMarketService.newTariffs = []
     
     // init time service
     start = new DateTime(2011, 1, 1, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
@@ -442,7 +442,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
         
     // current time is noon. Set pub interval to 3 hours.
     tariffMarketService.configuration.configuration['publicationInterval'] = '3' // hours
-    assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
+    assertEquals("newTariffs list is empty", 0, Tariff.findAllByState(Tariff.State.PENDING).size())
     // register a NewTariffListener 
     def publishedTariffs = []
     def listener = 
@@ -505,7 +505,8 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     // it's 15:00 - time to publish
     tariffMarketService.activate(timeService.currentTime, 2)
     assertEquals("5 tariffs at 15:00", 5, publishedTariffs.size())
-    assertEquals("newTariffs list is again empty", 0, tariffMarketService.newTariffs.size())
+    List pendingTariffs = Tariff.findAllByState(Tariff.State.PENDING)
+    assertEquals("newTariffs list is again empty", 0, pendingTariffs.size())
   }
 
   // create some subscriptions and then revoke a tariff

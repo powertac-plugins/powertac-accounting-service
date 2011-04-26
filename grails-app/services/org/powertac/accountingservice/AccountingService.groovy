@@ -84,11 +84,11 @@ class AccountingService
                                                 BigDecimal quantity,
                                                 BigDecimal charge)
   {
-    TariffTransaction ttx = new TariffTransaction(broker: tariff.broker,
-            postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
+    // Note that tariff may be stale
+    TariffTransaction ttx = new TariffTransaction(broker: Broker.get(tariff.broker.id),
+            postedTime: timeService.currentTime, txType:txType, tariff:Tariff.get(tariff.id), 
             CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
-    log.info "addTtx broker: ${tariff.broker}"
     ttx.save()
     pendingTransactions.add(ttx)
     return ttx
@@ -131,6 +131,9 @@ class AccountingService
     return position.overallBalance
   }
 
+  // keep in mind that this will likely be called in a different
+  // session from the one in which the transaction was created, so
+  // the transactions themselves may be stale.
   @Synchronized
   void activate (Instant time, int phaseNumber)
   {
@@ -142,7 +145,9 @@ class AccountingService
       brokerMsg[broker.username] = [] as Set
     }
     // walk through the pending transactions and run the updates
-    pendingTransactions.each { tx ->
+    pendingTransactions.each { oldtx ->
+      // need to refresh the transaction first
+      def tx = oldtx.class.get(oldtx.id)
       if (tx.broker == null) {
         log.error "${tx} has null broker"
       }
