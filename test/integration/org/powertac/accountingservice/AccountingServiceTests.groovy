@@ -30,7 +30,9 @@ class AccountingServiceTests extends GroovyTestCase
 {
   def timeService // dependency injection
   def accountingService
+  def accountingInitializationService
 
+  Competition comp
   CustomerInfo customerInfo1
   CustomerInfo customerInfo2
   CustomerInfo customerInfo3
@@ -50,15 +52,27 @@ class AccountingServiceTests extends GroovyTestCase
     //accountingService.idCount = 0
     accountingService.pendingTransactions = []
     Timeslot.list()*.delete()
-    Broker.list()*.delete()
+    //Broker.list()*.delete()
+    PluginConfig.findByRoleName('AccountingService')?.delete()
 
+    // create a Competition, needed for initialization
+    if (Competition.count() == 0) {
+      comp = new Competition(name: 'accounting-test')
+      assert comp.save()
+    }
+    else {
+      comp = Competition.list().first()
+    }
+    
     // set the clock
     def now = new DateTime(2011, 1, 26, 12, 0, 0, 0, DateTimeZone.UTC).toInstant()
     timeService.setCurrentTime(now)
     
     // set up brokers and customers
+    Broker.findByUsername('Bob')?.delete()
     bob = new Broker(username: "Bob")
     assert (bob.save())
+    Broker.findByUsername('Jim')?.delete()
     jim = new Broker(username: "Jim")
     assert (jim.save())
 
@@ -126,10 +140,34 @@ class AccountingServiceTests extends GroovyTestCase
   {
     super.tearDown()
   }
+  
+  void initializeService () {
+    accountingInitializationService.setDefaults()
+    accountingInitializationService.initialize(comp, [])
+  }
 
   void testAccountingServiceNotNull() 
   {
+    assertNotNull(accountingInitializationService)
     assertNotNull(accountingService)
+  }
+  
+  void testNormalInitialization ()
+  {
+    accountingInitializationService.setDefaults()
+    PluginConfig config = PluginConfig.findByRoleName('AccountingService')
+    assertNotNull("config created correctly", config)
+    def result = accountingInitializationService.initialize(comp, [])
+    assertEquals("correct return value", 'AccountingService', result)
+    assertEquals("correct bank interest", 0.10/365.0, accountingService.getDailyInterest(), 1e-6)
+  }
+  
+  void testBogusInitialization ()
+  {
+    PluginConfig config = PluginConfig.findByRoleName('AccountingService')
+    assertNull("config not created", config)
+    def result = accountingInitializationService.initialize(comp, [])
+    assertEquals("failure return value", 'fail', result)
   }
   
   void testBrokerDb ()
@@ -143,6 +181,7 @@ class AccountingServiceTests extends GroovyTestCase
   // create and test tariff transactions
   void testTariffTransaction ()
   {
+    initializeService()
     accountingService.addTariffTransaction(TariffTransactionType.SIGNUP,
       tariffB1, customerInfo1, 2, 0.0, 42.1)
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
@@ -162,6 +201,7 @@ class AccountingServiceTests extends GroovyTestCase
   
   void testCurrentNetLoad ()
   {
+    initializeService()
     // some usage for Bob
     accountingService.addTariffTransaction(TariffTransactionType.CONSUME,
       tariffB1, customerInfo1, 7, 77.0, 7.7)
@@ -181,6 +221,7 @@ class AccountingServiceTests extends GroovyTestCase
   // create and test market transactions
   void testMarketTransaction ()
   {
+    initializeService()
     accountingService.addMarketTransaction(bob,
         Timeslot.findBySerialNumber(5), 45.0, 0.5)
     accountingService.addMarketTransaction(bob,
@@ -202,6 +243,7 @@ class AccountingServiceTests extends GroovyTestCase
   // simple activation
   void testSimpleActivate ()
   {
+    initializeService()
     // need a Competition instance for interest calculation
     Competition comp = 
         new Competition(name: "test", bankInterest: 0.12)
@@ -262,6 +304,7 @@ class AccountingServiceTests extends GroovyTestCase
   // test activation
   void testActivate ()
   {
+    initializeService()
     // market transactions
     accountingService.addMarketTransaction(bob,
         Timeslot.findBySerialNumber(5), 45.0, 0.5)
@@ -306,6 +349,7 @@ class AccountingServiceTests extends GroovyTestCase
   // net market position only works after activation
   void testCurrentMarketPosition ()
   {
+    initializeService()
     accountingService.addMarketTransaction(bob,
         Timeslot.findBySerialNumber(5), 45.0, 0.5)
     accountingService.addMarketTransaction(bob,
@@ -340,10 +384,11 @@ class AccountingServiceTests extends GroovyTestCase
   // interest should be paid/charged at midnight activation
   void testInterestPayment ()
   {
+    initializeService()
     // need a PluginConfig instance for interest calculation
     PluginConfig config = accountingService.configuration
     assertNotNull("non-null config", config)
-    assertEquals("interest set by bootstrap", '0.0', config.configuration['bankInterest'])
+    assertEquals("interest set by bootstrap", '0.10', config.configuration['bankInterest'])
     
     // set the interest to 12%
     config.configuration['bankInterest'] = '0.12'

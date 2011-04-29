@@ -28,6 +28,7 @@ import org.powertac.common.enumerations.PowerType
 import org.powertac.common.enumerations.CustomerType
 import org.powertac.common.enumerations.TariffTransactionType
 import org.powertac.common.AbstractCustomer
+import org.powertac.common.Competition
 import org.powertac.common.CustomerInfo
 import org.powertac.common.Rate
 import org.powertac.common.Tariff
@@ -42,17 +43,20 @@ import org.powertac.common.msg.TariffStatus
 import org.powertac.common.msg.VariableRateUpdate
 import org.powertac.tariffmarket.TariffMarketService
 import org.powertac.common.TimeService
+import org.powertac.common.PluginConfig
 
 class AbstractCustomerSchedTests extends GroovyTestCase {
   
   def timeService  // autowire the time service
   def tariffMarketService // autowire the market
+  def tariffMarketInitializationService
   
   DateTime theBase
   DateTime theStart
   int theRate
   int theMod
   
+  Competition comp
   Tariff tariff
   TariffSpecification defaultTariffSpec
   Broker broker1
@@ -67,6 +71,15 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
   protected void setUp() {
     super.setUp()
     
+    // create a Competition, needed for initialization
+    if (Competition.count() == 0) {
+      comp = new Competition(name: 'accounting-test')
+      assert comp.save()
+    }
+    else {
+      comp = Competition.list().first()
+    }
+
     theBase = new DateTime(2007, 6, 21, 12, 0, 0, 0, DateTimeZone.UTC)
     theStart = new DateTime(DateTimeZone.UTC)
     theRate = 720
@@ -77,15 +90,22 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     timeService.modulo = theMod
     timeService.updateTime()
 
+    // initialize the tariff market
+    PluginConfig.findByRoleName('TariffMarket')?.delete()
+    tariffMarketInitializationService.setDefaults()
+    tariffMarketInitializationService.initialize(comp, ['AccountingService'])
+    
     tariffMarketService.registrations = []
-    tariffMarketService.newTariffs = []
+    //tariffMarketService.newTariffs = []
     
     TariffSpecification.list()*.delete()
     Tariff.list()*.delete()
-    Broker.list()*.delete()
+    //Broker.list()*.delete()
     CustomerInfo.list()*.delete()
+    Broker.findByUsername('Joe')?.delete()
     broker1 = new Broker(username: "Joe", password: "foo")
     assert broker1.save()
+    Broker.findByUsername('Anna')?.delete()
     broker2 = new Broker(username: "Anna", password: "bar")
     assert broker2.save()
   
@@ -288,7 +308,7 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
      
     // current time is noon. Set pub interval to 3 hours.
     tariffMarketService.configuration.configuration['publicationInterval'] = '3' // hours
-    assertEquals("newTariffs list is empty", 0, tariffMarketService.newTariffs.size())
+    //assertEquals("newTariffs list is empty", 0, Tariff.findAllByState(Tariff.State.PENDING).size())
   
     assertEquals("one registration", 1, tariffMarketService.registrations.size())
     assertEquals("no tariffs at 12:00", 0, customer.publishedTariffs.size())

@@ -84,13 +84,11 @@ class AccountingService
                                                 BigDecimal quantity,
                                                 BigDecimal charge)
   {
-    TariffTransaction ttx = new TariffTransaction(broker: tariff.broker,
-            postedTime: timeService.currentTime, txType:txType, tariff:tariff, 
+    // Note that tariff may be stale
+    TariffTransaction ttx = new TariffTransaction(broker: Broker.get(tariff.broker.id),
+            postedTime: timeService.currentTime, txType:txType, tariff:Tariff.get(tariff.id), 
             CustomerInfo:customer, customerCount:customerCount,
             quantity:quantity, charge:charge)
-    if (!ttx.validate()) {
-      ttx.errors.allErrors.each {log.error it.toString()}
-    }
     ttx.save()
     pendingTransactions.add(ttx)
     return ttx
@@ -133,17 +131,31 @@ class AccountingService
     return position.overallBalance
   }
 
+  // keep in mind that this will likely be called in a different
+  // session from the one in which the transaction was created, so
+  // the transactions themselves may be stale.
   @Synchronized
   void activate (Instant time, int phaseNumber)
   {
     def brokerMsg = [:]
     Broker.list().each { broker ->
-      brokerMsg[broker] = [] as Set
+      // use username here rather than broker, because it seems that
+      // the broker instance in the transaction and the broker instance
+      // from the list are not necessarily the same object...
+      brokerMsg[broker.username] = [] as Set
     }
     // walk through the pending transactions and run the updates
-    pendingTransactions.each { tx ->
-      brokerMsg[tx.broker] << tx
-      processTransaction(tx, brokerMsg[tx.broker])
+    pendingTransactions.each { oldtx ->
+      // need to refresh the transaction first
+      def tx = oldtx.class.get(oldtx.id)
+      if (tx.broker == null) {
+        log.error "${tx} has null broker"
+      }
+      if (brokerMsg[tx.broker.username] == null) {
+        log.error "broker ${tx.broker} not in database"
+      }
+      brokerMsg[tx.broker.username] << tx
+      processTransaction(tx, brokerMsg[tx.broker.username])
     }
     // for each broker, compute interest and send messages
     BigDecimal rate = getDailyInterest()
@@ -157,14 +169,14 @@ class AccountingService
           brokerRate /= 2.0
         }
         BigDecimal interest = cash.balance * brokerRate
-        brokerMsg[broker] << 
+        brokerMsg[broker.username] << 
             new BankTransaction(broker: broker, amount: interest,
                                 postedTime: timeService.currentTime)
         cash.balance += interest
       }
       // add the cash position to the list and send messages
-      brokerMsg[broker] << broker.cash
-      brokerProxyService.sendMessages(broker, brokerMsg[broker] as List)
+      brokerMsg[broker.username] << broker.cash
+      brokerProxyService.sendMessages(broker, brokerMsg[broker.username] as List)
     }    
   }
 
