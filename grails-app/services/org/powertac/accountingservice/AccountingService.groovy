@@ -33,8 +33,7 @@ import groovy.transform.Synchronized
  */
 class AccountingService
     implements org.powertac.common.interfaces.Accounting,
-               org.powertac.common.interfaces.TimeslotPhaseProcessor,
-               org.springframework.beans.factory.InitializingBean
+               org.powertac.common.interfaces.TimeslotPhaseProcessor
 {
   static transactional = true
   
@@ -52,9 +51,10 @@ class AccountingService
   /**
    * Register for phase 3 activation, to drive tariff publication
    */
-  void afterPropertiesSet ()
+  void init (PluginConfig config)
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
+    configuration = config
   }
 
   @Synchronized
