@@ -166,14 +166,14 @@ class AbstractCustomerSchedTests extends GroovyTestCase {
     
     assertFalse("Customer consumed power", customer.subscriptions?.totalUsage == 0)
     
-    assertEquals("Tariff Transaction Created", 1, TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
+    assertEquals("Tariff Transaction Created", 1, TariffTransaction.findAllByTxType(TariffTransactionType.CONSUME).count())
     
     Thread.sleep(5000) // 10 seconds -> 1 hour sim time
     timeService.updateTime()
     
     assertFalse("Customer consumed power", customer.subscriptions?.totalUsage == 0)
     
-    assertEquals("Tariff Transaction Created", 2, TariffTransaction.findByTxType(TariffTransactionType.CONSUME).count())
+    assertEquals("Tariff Transaction Created", 2, TariffTransaction.findAllByTxType(TariffTransactionType.CONSUME).count())
     
   }
   
