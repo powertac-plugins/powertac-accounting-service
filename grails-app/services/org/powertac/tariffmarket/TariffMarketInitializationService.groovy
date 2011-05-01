@@ -50,7 +50,7 @@ class TariffMarketInitializationService
       log.error "PluginConfig for TariffMarket does not exist"
     }
     else {
-      tariffMarketService.configuration = tariffMarketConfig
+      tariffMarketService.init(tariffMarketConfig)
       return 'TariffMarket'
     }
     return 'fail'
