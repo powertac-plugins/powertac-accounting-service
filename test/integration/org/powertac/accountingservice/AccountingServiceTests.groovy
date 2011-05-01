@@ -159,7 +159,7 @@ class AccountingServiceTests extends GroovyTestCase
     assertNotNull("config created correctly", config)
     def result = accountingInitializationService.initialize(comp, [])
     assertEquals("correct return value", 'AccountingService', result)
-    assertEquals("correct bank interest", 0.10/365.0, accountingService.getDailyInterest(), 1e-6)
+    assertEquals("correct bank interest", 0.10, accountingService.getBankInterest(), 1e-6)
   }
   
   void testBogusInitialization ()
@@ -385,13 +385,10 @@ class AccountingServiceTests extends GroovyTestCase
   void testInterestPayment ()
   {
     initializeService()
-    // need a PluginConfig instance for interest calculation
-    PluginConfig config = accountingService.configuration
-    assertNotNull("non-null config", config)
-    assertEquals("interest set by bootstrap", '0.10', config.configuration['bankInterest'])
+    assertEquals("interest set by bootstrap", 0.10, accountingService.bankInterest)
     
     // set the interest to 12%
-    config.configuration['bankInterest'] = '0.12'
+    accountingService.bankInterest = 0.12
     
     // broker proxy
     def messages = [:]

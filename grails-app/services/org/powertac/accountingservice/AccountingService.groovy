@@ -44,7 +44,7 @@ class AccountingService
   def pendingTransactions = []
   
   // read this from plugin config
-  PluginConfig configuration
+  BigDecimal bankInterest = 0.0
 
   int simulationPhase = 3
   
@@ -54,7 +54,13 @@ class AccountingService
   void init (PluginConfig config)
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
-    configuration = config
+    BigDecimal value = config.configuration['bankInterest']?.toBigDecimal()
+    if (value != null) {
+      bankInterest = value
+    }
+    else {
+      log.error "Bank interest not configured. Default to ${bankInterest}"
+    }
   }
 
   @Synchronized
@@ -158,7 +164,7 @@ class AccountingService
       processTransaction(tx, brokerMsg[tx.broker.username])
     }
     // for each broker, compute interest and send messages
-    BigDecimal rate = getDailyInterest()
+    BigDecimal rate = bankInterest/365.0
     Broker.list().each { broker ->
       // run interest payments at midnight
       if (timeService.hourOfDay == 0) {
@@ -178,18 +184,6 @@ class AccountingService
       brokerMsg[broker.username] << broker.cash
       brokerProxyService.sendMessages(broker, brokerMsg[broker.username] as List)
     }    
-  }
-
-  private Number getDailyInterest()
-  {
-    BigDecimal rate = 0.0
-    if (configuration == null) {
-      log.error("cannot find configuration")
-    }
-    else {
-      rate = configuration.configuration['bankInterest'].toBigDecimal()/365.0
-    }
-    return rate
   }
   
   // process a tariff transaction
