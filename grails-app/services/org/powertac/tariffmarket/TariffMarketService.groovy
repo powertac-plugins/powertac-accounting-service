@@ -269,8 +269,11 @@ class TariffMarketService
         tariff.state = Tariff.State.OFFERED
         tariff.save()
       }
+
+      def publishedTariffSpecs =  publishedTariffs.collect { it.tariffSpec }
+
       registrations*.publishNewTariffs(publishedTariffs)
-      brokerProxyService?.broadcastMessages(publishedTariffs)
+      brokerProxyService?.broadcastMessages(publishedTariffSpecs)
     }
   }
 
