@@ -426,7 +426,6 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
   // test batch-publication of new tariffs
   void testBatchPublication ()
   {
-    initializeService()
     // test competitionControl registration
     def registrationThing = null
     def registrationPhase = -1
@@ -436,12 +435,12 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
           registrationPhase = phase
         }] as CompetitionControl
     tariffMarketService.competitionControlService = competitionControlService
-    tariffMarketService.afterPropertiesSet()
+    initializeService()
     //assertEquals("correct thing", tariffMarketService, registrationThing)
     assertEquals("correct phase", tariffMarketService.simulationPhase, registrationPhase)
         
     // current time is noon. Set pub interval to 3 hours.
-    tariffMarketService.configuration.configuration['publicationInterval'] = '3' // hours
+    tariffMarketService.publicationInterval = 3 // hours
     assertEquals("newTariffs list is empty", 0, Tariff.findAllByState(Tariff.State.PENDING).size())
     // register a NewTariffListener 
     def publishedTariffs = []

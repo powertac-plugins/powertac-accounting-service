@@ -45,12 +45,12 @@ class AccountingInitializationService
   @Override
   public String initialize (Competition competition, List<String> completedInits)
   {
-    PluginConfig accounting = PluginConfig.findByRoleName('AccountingService')
-    if (accounting == null) {
+    PluginConfig accountingConfig = PluginConfig.findByRoleName('AccountingService')
+    if (accountingConfig == null) {
       log.error "PluginConfig for AccountingService does not exist"
     }
     else {
-      accountingService.configuration = accounting
+      accountingService.init(accountingConfig)
       return 'AccountingService'
     }
     return 'fail'

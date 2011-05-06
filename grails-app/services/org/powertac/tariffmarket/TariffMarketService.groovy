@@ -50,8 +50,7 @@ import org.powertac.common.interfaces.BrokerProxy
 class TariffMarketService
     implements org.powertac.common.interfaces.TariffMarket,
                org.powertac.common.interfaces.BrokerMessageListener,
-               org.powertac.common.interfaces.TimeslotPhaseProcessor,
-               org.springframework.beans.factory.InitializingBean
+               org.powertac.common.interfaces.TimeslotPhaseProcessor
 {
   static transactional = true
 
@@ -60,36 +59,44 @@ class TariffMarketService
   CompetitionControl competitionControlService
   BrokerProxy brokerProxyService
   
+  // maps power type to id of corresponding default tariff
   Map defaultTariff = [:]
-  //List newTariffs = []
 
   // read this from plugin config
-  PluginConfig configuration
+  //PluginConfig configuration
   int simulationPhase = 2
+  BigDecimal tariffPublicationFee = 0.0
+  BigDecimal tariffRevocationFee = 0.0
+  int publicationInterval = 6
   
   /**
    * Register for phase 2 activation, to drive tariff publication
    */
-  void afterPropertiesSet ()
+  void init (PluginConfig config)
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
     brokerProxyService?.registerBrokerTariffListener(this)
-  }
-  
-  // ----------------- Configuration access ------------------
-  BigDecimal getTariffPublicationFee ()
-  {
-    return configuration.configuration['tariffPublicationFee'].toBigDecimal()
-  }
-  
-  BigDecimal getTariffRevocationFee ()
-  {
-    return configuration.configuration['tariffRevocationFee'].toBigDecimal()
-  }
-  
-  int getPublicationInterval ()
-  {
-    return configuration.configuration['publicationInterval'].toInteger()
+    BigDecimal fee = config.configuration['tariffPublicationFee']?.toBigDecimal()
+    if (fee == null) {
+      log.error "Tariff publication fee not specified. Default to ${tariffPublicationFee}"
+    }
+    else {
+      tariffPublicationFee = fee
+    }
+    fee = config.configuration['tariffRevocationFee']?.toBigDecimal()
+    if (fee == null) {
+      log.error "Tariff revocation fee not specified. Default to ${tariffPublicationFee}"
+    }
+    else {
+      tariffRevocationFee = fee
+    }
+    Integer interval = config.configuration['publicationInterval']?.toInteger()
+    if (interval == null) {
+      log.error "Tariff publication interval not specified. Default to ${publicationInterval}"
+    }
+    else {
+      publicationInterval = interval
+    }
   }
 
   // ----------------- Broker message API --------------------
@@ -262,8 +269,11 @@ class TariffMarketService
         tariff.state = Tariff.State.OFFERED
         tariff.save()
       }
+
+      def publishedTariffSpecs =  publishedTariffs.collect { it.tariffSpec }
+
       registrations*.publishNewTariffs(publishedTariffs)
-      brokerProxyService?.broadcastMessages(publishedTariffs)
+      brokerProxyService?.broadcastMessages(publishedTariffSpecs)
     }
   }
 
@@ -326,7 +336,7 @@ class TariffMarketService
   @Override
   public Tariff getDefaultTariff (PowerType type)
   {
-    return defaultTariff[type]
+    return Tariff.get(defaultTariff[type])
   }
 
   @Override
@@ -347,7 +357,7 @@ class TariffMarketService
       log.error("failed to save default tariff ${newSpec}")
       return false
     }
-    defaultTariff[newSpec.getPowerType()] = tariff
+    defaultTariff[newSpec.getPowerType()] = tariff.id
     return true
   }
 
