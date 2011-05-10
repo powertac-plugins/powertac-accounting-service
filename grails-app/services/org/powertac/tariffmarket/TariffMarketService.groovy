@@ -271,6 +271,9 @@ class TariffMarketService
       }
 
       def publishedTariffSpecs =  publishedTariffs.collect { it.tariffSpec }
+      publishedTariffSpecs.each { spec ->
+        log.info "publishing spec ${spec.id}, broker: ${spec.broker.username}, exp: ${spec.expiration}"
+      }
 
       registrations*.publishNewTariffs(publishedTariffs)
       brokerProxyService?.broadcastMessages(publishedTariffSpecs)
