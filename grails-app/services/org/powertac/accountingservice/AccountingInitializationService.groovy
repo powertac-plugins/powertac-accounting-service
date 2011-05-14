@@ -31,14 +31,27 @@ class AccountingInitializationService
   static transactional = true
   
   def accountingService //autowire
+  def randomSeedService // autowire
+  Random randomGen
   
+  double minInterest = 0.04
+  double maxInterest = 0.12
   
   @Override
   public void setDefaults ()
   {
+   long randomSeed = randomSeedService.nextSeed('AccountingInitializationService',
+                                                'init', 'interest')
+    randomGen = new Random(randomSeed)
+
+    double interest = (minInterest + 
+		       (randomGen.nextDouble() *
+			(maxInterest - minInterest)))
+
+    log.info("bank interest: ${interest}")
     PluginConfig accounting =
     new PluginConfig(roleName:'AccountingService',
-                     configuration: [bankInterest: '0.10'])
+                     configuration: [bankInterest: Double.toString(interest)])
     accounting.save()
   }
 
