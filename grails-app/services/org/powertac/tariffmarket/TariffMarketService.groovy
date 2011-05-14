@@ -263,21 +263,29 @@ class TariffMarketService
     long msec = timeService.currentTime.millis
     if (msec % (publicationInterval * TimeService.HOUR) == 0) {
       // time to publish
-      List publishedTariffs = Tariff.findAllByState(Tariff.State.PENDING)
-      log.info "publishing ${publishedTariffs.size()} new tariffs"
-      publishedTariffs.each { tariff ->
-        tariff.state = Tariff.State.OFFERED
-        tariff.save()
-      }
-
-      def publishedTariffSpecs =  publishedTariffs.collect { it.tariffSpec }
-      publishedTariffSpecs.each { spec ->
-        log.info "publishing spec ${spec.id}, broker: ${spec.broker.username}, exp: ${spec.expiration}"
-      }
-
-      registrations*.publishNewTariffs(publishedTariffs)
-      brokerProxyService?.broadcastMessages(publishedTariffSpecs)
+      publishTariffs()
     }
+  }
+
+  /**
+   * Publishes pending tariffs to customers and brokers
+   */
+  void publishTariffs ()
+  { 
+    List publishedTariffs = Tariff.findAllByState(Tariff.State.PENDING)
+    log.info "publishing ${publishedTariffs.size()} new tariffs"
+    publishedTariffs.each { tariff ->
+      tariff.state = Tariff.State.OFFERED
+      tariff.save()
+    }
+
+    def publishedTariffSpecs =  publishedTariffs.collect { it.tariffSpec }
+    publishedTariffSpecs.each { spec ->
+      log.info "publishing spec ${spec.id}, broker: ${spec.broker.username}, exp: ${spec.expiration}"
+    }
+
+    registrations*.publishNewTariffs(publishedTariffs)
+    brokerProxyService?.broadcastMessages(publishedTariffSpecs)
   }
 
   /**
