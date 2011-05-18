@@ -106,11 +106,14 @@ class AccountingService
   BigDecimal getCurrentNetLoad (Broker broker)
   {
     BigDecimal netLoad = 0.0
-    pendingTransactions.each { tx ->
-      if (tx instanceof TariffTransaction && tx.broker == broker ) {
-        if (tx.txType == TariffTransactionType.CONSUME ||
-            tx.txType == TariffTransactionType.PRODUCE) {
-          netLoad += tx.quantity
+    pendingTransactions.each { oldtx ->
+      if (oldtx instanceof TariffTransaction) {
+        TariffTransaction tx = TariffTransaction.get(oldtx.id)
+        if (tx.broker == broker ) {
+          if (tx.txType == TariffTransactionType.CONSUME ||
+              tx.txType == TariffTransactionType.PRODUCE) {
+            netLoad += tx.quantity
+          }
         }
       }
     }
@@ -163,6 +166,7 @@ class AccountingService
       brokerMsg[tx.broker.username] << tx
       processTransaction(tx, brokerMsg[tx.broker.username])
     }
+    pendingTransactions.clear()
     // for each broker, compute interest and send messages
     BigDecimal rate = bankInterest/365.0
     Broker.list().each { broker ->
