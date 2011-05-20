@@ -159,7 +159,10 @@ class AccountingServiceTests extends GroovyTestCase
     assertNotNull("config created correctly", config)
     def result = accountingInitializationService.initialize(comp, [])
     assertEquals("correct return value", 'AccountingService', result)
-    assertEquals("correct bank interest", 0.10, accountingService.getBankInterest(), 1e-6)
+    assertTrue("correct bank interest",
+       accountingInitializationService.minInterest <= accountingService.getBankInterest())
+    assertTrue("correct bank interest",
+       accountingInitializationService.maxInterest >= accountingService.getBankInterest())
   }
   
   void testBogusInitialization ()
@@ -385,7 +388,7 @@ class AccountingServiceTests extends GroovyTestCase
   void testInterestPayment ()
   {
     initializeService()
-    assertEquals("interest set by bootstrap", 0.10, accountingService.bankInterest)
+    //assertEquals("interest set by bootstrap", 0.10, accountingService.bankInterest)
     
     // set the interest to 12%
     accountingService.bankInterest = 0.12
