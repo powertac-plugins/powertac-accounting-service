@@ -141,8 +141,10 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
 
  void testServiceInitialization() {
    initializeService()
-
    assertEquals("Two Customers Created", 2, AbstractCustomer.count())
+
+   // customers no longer subscribe at init()
+   tariffMarketService.publishTariffs()
    assertFalse("Customer 1 subscribed", AbstractCustomer.findByCustomerInfo(CustomerInfo.findByName("Customer 1")).subscriptions == null)
    assertFalse("Customer 2 subscribed", AbstractCustomer.findByCustomerInfo(CustomerInfo.findByName("Customer 2")).subscriptions == null)
    assertFalse("Customer 1 subscribed to default", AbstractCustomer.findByCustomerInfo(CustomerInfo.findByName("Customer 1")).subscriptions == tariffMarketService.getDefaultTariff(PowerType.CONSUMPTION))
@@ -224,13 +226,21 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
    // householdCustomerService.activate(timeService.currentTime, 1)
 
    AbstractCustomer.list().each{ customer ->
-     customer.unsubscribe(tariffMarketService.getDefaultTariff(PowerType.CONSUMPTION),3)
+     TariffSubscription tsd =
+         TariffSubscription.findByTariffAndCustomer(tariffMarketService.getDefaultTariff(PowerType.CONSUMPTION), customer)
+     customer.unsubscribe(tsd,3)
      customer.subscribe(tc1, 3)
      customer.subscribe(tc2, 3)
      customer.subscribe(tc3, 4)
-     customer.unsubscribe(tc1, 2)
-     customer.unsubscribe(tc2, 1)
-     customer.unsubscribe(tc3, 2)
+     TariffSubscription ts1 =
+        TariffSubscription.findByTariffAndCustomer(tc1, customer)
+     customer.unsubscribe(ts1, 2)
+     TariffSubscription ts2 =
+        TariffSubscription.findByTariffAndCustomer(tc2, customer)
+     customer.unsubscribe(ts2, 1)
+     TariffSubscription ts3 =
+        TariffSubscription.findByTariffAndCustomer(tc3, customer)
+     customer.unsubscribe(ts3, 2)
      println("Number Of Subscriptions in DB: ${TariffSubscription.count()}")
      assertEquals("4 Subscriptions for customer",4, customer.subscriptions?.size())
      timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
