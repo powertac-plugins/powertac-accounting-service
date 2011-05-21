@@ -75,7 +75,7 @@ class AccountingService
                                                   quantity: quantity,
                                                   postedTime: timeService.currentTime)
     if (!mtx.validate()) {
-      mtx.errors.allErrors.each { println it.toString() }
+      mtx.errors.allErrors.each { log.info it.toString() }
     }
     assert mtx.save()
     pendingTransactions.add(mtx)
@@ -130,11 +130,11 @@ class AccountingService
   BigDecimal getCurrentMarketPosition (Broker broker)
   {
     Timeslot current = Timeslot.currentTimeslot()
-    println "current timeslot: ${current.serialNumber}"
+    log.debug "current timeslot: ${current.serialNumber}"
     MarketPosition position =
         MarketPosition.findByBrokerAndTimeslot(broker, current)
     if (position == null) {
-      println "null position for ts ${current.serialNumber}"
+      log.debug "null position for ts ${current.serialNumber}"
       return 0.0
     }
     return position.overallBalance
@@ -212,19 +212,19 @@ class AccountingService
     if (mkt == null) {
       mkt = new MarketPosition(broker: broker, timeslot: tx.timeslot)
       if (!mkt.validate()) {
-        mkt.errors.allErrors.each { println it.toString() }
+        mkt.errors.allErrors.each { log.info it.toString() }
       }
       assert mkt.save()
-      println "New MarketPosition(${broker.username}, ${tx.timeslot.serialNumber}): ${mkt.id}"
+      log.debug "New MarketPosition(${broker.username}, ${tx.timeslot.serialNumber}): ${mkt.id}"
       broker.addToMarketPositions(mkt)
       if (!broker.validate()) {
-        broker.errors.each { println it.toString() }
+        broker.errors.each { log.info it.toString() }
       }
       assert broker.save()
     }
     mkt.updateBalance(tx.quantity)
     assert mkt.save()
     messages << mkt
-    println "MarketPosition count = ${MarketPosition.count()}"
+    log.debug "MarketPosition count = ${MarketPosition.count()}"
   }
 }
