@@ -35,7 +35,7 @@ class AccountingService
     implements org.powertac.common.interfaces.Accounting,
                org.powertac.common.interfaces.TimeslotPhaseProcessor
 {
-  static transactional = true
+  static transactional = false
   
   def timeService // autowire reference
   def competitionControlService

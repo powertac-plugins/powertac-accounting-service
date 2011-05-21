@@ -422,7 +422,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
    assertEquals("three transaction", 3, TariffTransaction.count())
    
    AbstractCustomer.list().each{ customer ->
-     customer.evaluateNewPublishedTariffs(Tariff.list())
+     customer.possibilityEvaluationNewTariffs(Tariff.list())
    }
     
  }
