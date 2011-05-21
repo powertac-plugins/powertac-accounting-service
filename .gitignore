@@ -14,6 +14,7 @@ ehthumbs.db
 Icon?
 Thumbs.db
 *.log
+.settings/
 
 # Compiled source
 *.class
