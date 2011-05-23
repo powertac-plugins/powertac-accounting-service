@@ -232,14 +232,22 @@ class AbstractCustomerTests extends GroovyTestCase
     def tclist = tariffMarketService.getActiveTariffList(PowerType.CONSUMPTION)
     assertEquals("4 consumption tariffs", 4, tclist.size())
     assertEquals("three transaction", 3, TariffTransaction.count())
-	
-    customer.unsubscribe(tariffMarketService.getDefaultTariff(PowerType.CONSUMPTION),70)
+
+    TariffSubscription tsd =
+        TariffSubscription.findByTariffAndCustomer(tariffMarketService.getDefaultTariff(PowerType.CONSUMPTION), customer)
+    customer.unsubscribe(tsd,70)
     customer.subscribe(tc1, 23)
     customer.subscribe(tc2, 23)
     customer.subscribe(tc3, 24)
-    customer.unsubscribe(tc1, 12)
-    customer.unsubscribe(tc2, 11)
-    customer.unsubscribe(tc3, 20)
+    TariffSubscription ts1 =
+        TariffSubscription.findByTariffAndCustomer(tc1, customer)
+    customer.unsubscribe(ts1, 12)
+    TariffSubscription ts2 =
+        TariffSubscription.findByTariffAndCustomer(tc2, customer)
+    customer.unsubscribe(ts2, 11)
+    TariffSubscription ts3 =
+        TariffSubscription.findByTariffAndCustomer(tc3, customer)
+    customer.unsubscribe(ts3, 20)
     
     println(TariffSubscription.count())
     
