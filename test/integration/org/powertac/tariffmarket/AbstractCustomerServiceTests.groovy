@@ -128,7 +128,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
    assertNotNull("config created correctly", config)
    def result = abstractCustomerInitializationService.initialize(comp, ['TariffMarket', 'DefaultBroker'])
    assertEquals("correct return value", 'AbstractCustomer', result)
-   //assertEquals("correct number of customers", 2, abstractCustomerService.numberOfCustomers)
+   //assertEquals("correct number of customers", 0, AbstractCustomer.count())
  }
 
  void testBogusInitialization () {
@@ -432,7 +432,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
    assertEquals("three transaction", 3, TariffTransaction.count())
    
    AbstractCustomer.list().each{ customer ->
-     customer.simpleEvaluationNewTariffs(Tariff.list())
+     customer.possibilityEvaluationNewTariffs(Tariff.list())
    }
     
  }
