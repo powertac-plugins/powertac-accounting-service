@@ -124,6 +124,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
     ])
   }
 
+
   void testNormalInitialization () {
 
     abstractCustomerInitializationService.setDefaults()
@@ -371,6 +372,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
     abstractCustomerService.activate(timeService.currentTime, 2)
     assertEquals("newTariffs list is again empty", 0, Tariff.findAllByState(Tariff.State.PENDING).size())
   }
+
   void testEvaluatingTariffs() {
     initializeService()
     println("Number Of Subscriptions in DB: ${TariffSubscription.count()}")
@@ -405,6 +407,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
       customer.possibilityEvaluationNewTariffs(Tariff.list())
     }
   }
+
 
 }
 
