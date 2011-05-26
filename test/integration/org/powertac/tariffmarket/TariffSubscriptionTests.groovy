@@ -40,6 +40,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
 {
   def timeService  // autowire the time service
   def tariffMarketService  // autowire the market
+  def tariffSubscriptionService
   
   Tariff tariff
   Broker broker
@@ -120,9 +121,10 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     assertNotNull("non-null subscription", tsub)
     assertTrue("subscription saves", tsub.validate() && tsub.save())
     assertEquals("five customers committed", 5, tsub.customersCommitted)
-    assertEquals("one expiration record", 1, tsub.expirations.size())
+    List expirations = tariffSubscriptionService.getExpirations(tsub)
+    assertEquals("one expiration record", 1, expirations.size())
     Instant ex = new Instant(now.millis + TimeService.WEEK * 4)
-    assertEquals("correct contract interval", ex, tsub.expirations[0][0])
+    assertEquals("correct contract interval", ex, expirations[0][0])
     assertEquals("one transaction exists", 1, TariffTransaction.count())
     def txs = TariffTransaction.list()
     assertNotNull("transactions present", txs)
@@ -149,6 +151,7 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     TariffSubscription tsub =
         tariffMarketService.subscribeToTariff(tariff, customer, 5)
     assertTrue("subscription saves", tsub.validate() && tsub.save())
+    assertNotNull("non-null subscription id", tsub.id)
 
     // move time forward 2 weeks, withdraw 2 customers
     Instant wk2 = new Instant(now.millis + TimeService.WEEK * 2)
@@ -178,7 +181,8 @@ class TariffSubscriptionTests extends GrailsUnitTestCase
     assertNotNull("found withdraw tx", ttx)
     assertEquals("correct charge", 42.1, ttx.charge)
     assertEquals("six customers committed", 6, tsub1.customersCommitted)
-    assertEquals("two expiration records", 2, tsub.expirations.size())
+    List expirations = tariffSubscriptionService.getExpirations(tsub)
+    assertEquals("two expiration records", 2, expirations.size())
   }
   
   // Check consumption transactions

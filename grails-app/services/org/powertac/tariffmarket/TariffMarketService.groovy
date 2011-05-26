@@ -310,12 +310,14 @@ class TariffMarketService
     if (sub == null) {
       sub = new TariffSubscription(customer: customer,
                                    tariff: tariff)
+      sub.save()
       // temp fix
-      sub.accountingService = accountingService
+      //sub.accountingService = accountingService
     }
     sub.subscribe(customerCount)
     //tariff.addToSubscriptions(sub)
     sub.save()
+    log.debug "${sub} id=${sub.id}"
     return sub
   }
 
