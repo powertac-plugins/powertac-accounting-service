@@ -22,7 +22,7 @@ log4j = {
 
     warn   'org.mortbay.log'
     
-    info   'org.powertac.common', 'grails.app'
+    debug   'grails.app'
 }
 
 // Added by the Joda-Time plugin:
