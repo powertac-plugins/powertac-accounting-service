@@ -241,7 +241,7 @@ class AbstractCustomerTests extends GroovyTestCase {
 
     println(TariffSubscription.count())
 
-    assertEquals("4 Subscriptions for customer",4, customer.subscriptions?.size())
+    assertEquals("4 Subscriptions for customer",3, customer.subscriptions?.size())
 
     timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
     TariffRevoke tex = new TariffRevoke(tariffId: tsc2.id, broker: tc2.broker)
