@@ -192,7 +192,13 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
     assertEquals("Five tariff specifications", 5, TariffSpecification.count())
     assertEquals("Four tariffs", 4, Tariff.count())
     AbstractCustomer.list().each {customer ->
-      customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType), true)
+      customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType))
+
+      List<Tariff> lastTariff = customer.subscriptions?.tariff
+      lastTariff.each { tariff ->
+        customer.changeSubscription(tariff,tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType))
+        customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType), tariff, 5)
+      }
       assertFalse("Changed from default tariff", customer.subscriptions?.tariff.toString() == tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType).toString())
     }
   }
@@ -306,7 +312,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
       assertEquals("1 Subscriptions for customer", 1, customer.subscriptions?.size())
     }
   }
-  
+
   void testTariffPublication() {
     // test competitionControl registration
     def registrationThing = null
@@ -327,7 +333,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
 
     // current time is noon. Set pub interval to 3 hours.
     tariffMarketService.publicationInterval = 3 // hours
-   
+
     assertEquals("one registration", 1, tariffMarketService.registrations.size())
     // publish some tariffs over a period of three hours, check for publication
     def tsc1 = new TariffSpecification(broker: broker1,
@@ -414,7 +420,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
     }
   }
 
-  
+
 
 }
 

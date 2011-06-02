@@ -178,8 +178,14 @@ class AbstractCustomerTests extends GroovyTestCase {
 
     assertEquals("Four tariffs", 4, Tariff.count())
 
-    customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType), true)
+    customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType))
 
+    List<Tariff> lastTariff = customer.subscriptions?.tariff
+    
+    lastTariff.each { tariff ->
+      customer.changeSubscription(tariff,tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType))
+      customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType), tariff, 5)
+    }
     assertFalse("Changed from default tariff", customer.subscriptions?.tariff.toString() == tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType).toString())
   }
 
