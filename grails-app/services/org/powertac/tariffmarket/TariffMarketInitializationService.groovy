@@ -33,8 +33,8 @@ class TariffMarketInitializationService
   {
     PluginConfig tariffMarketConfig =
         new PluginConfig(roleName: 'TariffMarket',
-                         configuration: [tariffPublicationFee: '100.0',
-                                         tariffRevocationFee: '100.0',
+                         configuration: [tariffPublicationFee: '-100.0',
+                                         tariffRevocationFee: '-100.0',
                                          publicationInterval: '6'])
     tariffMarketConfig.save()
   }
