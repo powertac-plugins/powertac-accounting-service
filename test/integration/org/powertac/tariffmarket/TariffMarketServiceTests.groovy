@@ -149,7 +149,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertNotNull("config created correctly", config)
     def result = tariffMarketInitializationService.initialize(comp, ['AccountingService'])
     assertEquals("correct return value", 'TariffMarket', result)
-    assertEquals("correct publication fee", 100.0, tariffMarketService.getTariffPublicationFee(), 1e-6)
+    assertEquals("correct publication fee", -100.0, tariffMarketService.getTariffPublicationFee(), 1e-6)
   }
   
   void testBogusInitialization ()
