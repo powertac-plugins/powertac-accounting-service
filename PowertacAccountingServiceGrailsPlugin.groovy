@@ -1,11 +1,12 @@
 class PowertacAccountingServiceGrailsPlugin {
     // the plugin version
-    def version = "0.3"
+    def version = "0.4"
     // the version or versions of Grails the plugin is designed for
-    def grailsVersion = "1.3.6 > *"
+    def grailsVersion = "1.3.7 > *"
     // the other plugins this plugin depends on
-    def dependsOn = ['powertacCommon':'0.9 > *',
-                     'powertacServerInterface':'0.1 > *']
+    def dependsOn = ['joda-time':'1.1 > *',
+                     'powertacCommon':'0.10 > *',
+                     'powertacServerInterface':'0.2 > *']
 
     // resources that are excluded from plugin packaging
     def pluginExcludes = [

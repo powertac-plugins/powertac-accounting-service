@@ -6,6 +6,9 @@
 
 # Deployment directories
 target/
+*.zip
+*.sha1
+plugin.xml
 
 # OS generated files
 .DS_Store?
