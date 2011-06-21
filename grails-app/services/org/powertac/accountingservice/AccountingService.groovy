@@ -16,8 +16,6 @@
 
 package org.powertac.accountingservice
 
-import java.util.List;
-
 import org.joda.time.Instant;
 import org.powertac.common.*
 import org.powertac.common.msg.*
@@ -35,7 +33,7 @@ class AccountingService
     implements org.powertac.common.interfaces.Accounting,
                org.powertac.common.interfaces.TimeslotPhaseProcessor
 {
-  static transactional = false
+  //static transactional = false
   
   def timeService // autowire reference
   def competitionControlService

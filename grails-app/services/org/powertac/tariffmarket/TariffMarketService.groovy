@@ -52,7 +52,7 @@ class TariffMarketService
                org.powertac.common.interfaces.BrokerMessageListener,
                org.powertac.common.interfaces.TimeslotPhaseProcessor
 {
-  static transactional = false
+  //static transactional = false
 
   def timeService
   Accounting accountingService
