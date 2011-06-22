@@ -14,7 +14,7 @@
  * governing permissions and limitations under the License.
  */
 
-package org.powertac.tariffmarket
+package org.powertac.abstractcustomer
 
 import grails.test.*
 
@@ -62,7 +62,7 @@ class AbstractCustomerServiceTests extends GroovyTestCase {
 
     // create a Competition, needed for initialization
     if (Competition.count() == 0) {
-      comp = new Competition(name: 'abstract-customer-test')
+      comp = new Competition(name: 'abstract-customer-service-test')
       assert comp.save()
     }
     else {
