@@ -141,7 +141,7 @@ class AbstractProducerTests extends GroovyTestCase {
     producer.save()
     timeService.setCurrentTime(new Instant(now.millis + (TimeService.HOUR)))
     producer.producePower()
-    assertFalse("Customer consumed power", producer.subscriptions?.totalUsage == 0)
+    assertFalse("Customer produced power", producer.subscriptions?.totalUsage == 0)
     assertEquals("Tariff Transaction Created", 1,
         TariffTransaction.findByTxType(TariffTransactionType.PRODUCE).count())
   }
@@ -219,7 +219,7 @@ class AbstractProducerTests extends GroovyTestCase {
     assertNotNull("third tariff found", tc3)
     // make sure we have three active tariffs
     def tclist = tariffMarketService.getActiveTariffList(PowerType.PRODUCTION)
-    assertEquals("4 consumption tariffs", 4, tclist.size())
+    assertEquals("4 production tariffs", 4, tclist.size())
     assertEquals("three transaction", 3, TariffTransaction.count())
 
     TariffSubscription tsd =
@@ -247,7 +247,7 @@ class AbstractProducerTests extends GroovyTestCase {
     assertTrue("tariff revoked", tc2.isRevoked())
     // should now be just two active tariffs
     tclist = tariffMarketService.getActiveTariffList(PowerType.PRODUCTION)
-    assertEquals("3 consumption tariffs", 3, tclist.size())
+    assertEquals("3 production tariffs", 3, tclist.size())
     // retrieve Charley's revoked-subscription list
     def revokedCustomer = tariffMarketService.getRevokedSubscriptionList(producer)
     assertEquals("one item in list", 1, revokedCustomer.size())
@@ -263,7 +263,7 @@ class AbstractProducerTests extends GroovyTestCase {
     assertTrue("tariff revoked", tc3.isRevoked())
     // should now be just two active tariffs
     def tclist3 = tariffMarketService.getActiveTariffList(PowerType.PRODUCTION)
-    assertEquals("2 consumption tariffs", 2, tclist3.size())
+    assertEquals("2 production tariffs", 2, tclist3.size())
     // retrieve Charley's revoked-subscription list
     def revokedCustomer3 = tariffMarketService.getRevokedSubscriptionList(producer)
     assertEquals("one item in list", 1, revokedCustomer3.size())
@@ -279,7 +279,7 @@ class AbstractProducerTests extends GroovyTestCase {
     assertTrue("tariff revoked", tc1.isRevoked())
     // should now be just two active tariffs
     def tclist2 = tariffMarketService.getActiveTariffList(PowerType.PRODUCTION)
-    assertEquals("1 consumption tariffs", 1, tclist2.size())
+    assertEquals("1 production tariffs", 1, tclist2.size())
     // retrieve Charley's revoked-subscription list
     def revokedCustomer2 = tariffMarketService.getRevokedSubscriptionList(producer)
     assertEquals("one item in list", 1, revokedCustomer2.size())
