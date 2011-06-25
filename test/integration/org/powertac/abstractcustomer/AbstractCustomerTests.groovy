@@ -120,7 +120,7 @@ class AbstractCustomerTests extends GroovyTestCase {
     }
     assert(customerInfo.save())
 
-    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer = new AbstractCustomer(customerInfo: customerInfo)
     customer.init()
     customer.subscribeDefault()
     if (!customer.validate()) {
@@ -135,7 +135,7 @@ class AbstractCustomerTests extends GroovyTestCase {
     customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold,
         powerTypes: [PowerType.CONSUMPTION])
     customerInfo.save()
-    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer = new AbstractCustomer(customerInfo: customerInfo)
     customer.init()
     customer.subscribeDefault()
     customer.save()
@@ -154,7 +154,7 @@ class AbstractCustomerTests extends GroovyTestCase {
     customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold,
         powerTypes: [PowerType.CONSUMPTION])
     customerInfo.save()
-    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer = new AbstractCustomer(customerInfo: customerInfo)
     customer.init()
     customer.subscribeDefault()
     customer.save()
@@ -193,7 +193,7 @@ class AbstractCustomerTests extends GroovyTestCase {
   {
     customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, powerTypes: [PowerType.CONSUMPTION])
     customerInfo.save()
-    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer = new AbstractCustomer(customerInfo: customerInfo)
     customer.init()
     customer.subscribeDefault()
     customer.save()

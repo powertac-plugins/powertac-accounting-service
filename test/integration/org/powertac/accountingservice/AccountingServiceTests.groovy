@@ -430,6 +430,6 @@ class AccountingServiceTests extends GroovyTestCase
       msg instanceof CashPosition && msg.broker == bob
     }
     assertNotNull("found cash posn", cp1)
-    assertEquals("correct amount", -1000.0 * (1.0 + 0.12 / 365.0), cp1.balance, 1e-6)
+    assertEquals("correct amount", -1000.0 * (1.0 + 0.12 / 365.0), cp1.balance, 1e-4)
   }
 }
