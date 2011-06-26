@@ -16,13 +16,13 @@
 
 package org.powertac.accountingservice
 
-import org.joda.time.Instant;
-import org.powertac.common.*
-import org.powertac.common.msg.*
-import org.powertac.common.enumerations.TariffTransactionType;
-import org.powertac.common.exceptions.*
-
 import groovy.transform.Synchronized
+
+import org.joda.time.Instant
+import org.powertac.common.*
+import org.powertac.common.enumerations.TariffTransactionType
+import org.powertac.common.exceptions.*
+import org.powertac.common.msg.*
 
 /**
  * Implementation of {@link org.powertac.common.interfaces.Accounting}
@@ -30,22 +30,21 @@ import groovy.transform.Synchronized
  * @author John Collins
  */
 class AccountingService
-    implements org.powertac.common.interfaces.Accounting,
-               org.powertac.common.interfaces.TimeslotPhaseProcessor
-{
+implements org.powertac.common.interfaces.Accounting,
+org.powertac.common.interfaces.TimeslotPhaseProcessor {
   //static transactional = false
-  
+
   def timeService // autowire reference
   def competitionControlService
   def brokerProxyService
-  
+
   def pendingTransactions = []
-  
+
   // read this from plugin config
-  BigDecimal bankInterest = 0.0
+  double bankInterest = 0.0
 
   int simulationPhase = 3
-  
+
   /**
    * Register for phase 3 activation, to drive tariff publication
    */
@@ -53,7 +52,7 @@ class AccountingService
   {
     pendingTransactions.clear()
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
-    BigDecimal value = config.configuration['bankInterest']?.toBigDecimal()
+    double value = config.configuration['bankInterest']?.toDouble()
     if (value != null) {
       bankInterest = value
     }
@@ -64,15 +63,15 @@ class AccountingService
 
   @Synchronized
   MarketTransaction addMarketTransaction (Broker broker,
-                                          Timeslot timeslot,
-                                          BigDecimal price,
-                                          BigDecimal quantity)
+  Timeslot timeslot,
+  double price,
+  double quantity)
   {
     MarketTransaction mtx = new MarketTransaction(broker: broker,
-                                                  timeslot: timeslot,
-                                                  price: price,
-                                                  quantity: quantity,
-                                                  postedTime: timeService.currentTime)
+        timeslot: timeslot,
+        price: price,
+        quantity: quantity,
+        postedTime: timeService.currentTime)
     if (!mtx.validate()) {
       mtx.errors.allErrors.each { log.info it.toString() }
     }
@@ -82,18 +81,18 @@ class AccountingService
   }
 
   @Synchronized
-  public TariffTransaction addTariffTransaction (TariffTransactionType txType,
-                                                 Tariff tariff,
-                                                 CustomerInfo customer,
-                                                 int customerCount,
-                                                 BigDecimal quantity,
-                                                 BigDecimal charge)
+  public TariffTransaction addTariffTransaction(TariffTransactionType txType,
+  Tariff tariff,
+  CustomerInfo customer,
+  int customerCount,
+  double quantity,
+  double charge)
   {
     // Note that tariff may be stale
     TariffTransaction ttx = new TariffTransaction(broker: Broker.get(tariff.broker.id),
-            postedTime: timeService.currentTime, txType:txType, tariff:Tariff.get(tariff.id), 
-            CustomerInfo:customer, customerCount:customerCount,
-            quantity:quantity, charge:charge)
+        postedTime: timeService.currentTime, txType:txType, tariff:Tariff.get(tariff.id),
+        customerInfo:customer, customerCount:customerCount,
+        quantity:quantity, charge:charge)
     ttx.save()
     pendingTransactions.add(ttx)
     return ttx
@@ -126,15 +125,15 @@ class AccountingService
   // Gets the net load. Note that this only works BEFORE the day's transactions
   // have been processed.
   @Synchronized
-  BigDecimal getCurrentNetLoad (Broker broker)
+  double getCurrentNetLoad (Broker broker)
   {
-    BigDecimal netLoad = 0.0
+    double netLoad = 0.0
     pendingTransactions.each { oldtx ->
       if (oldtx instanceof TariffTransaction) {
         TariffTransaction tx = TariffTransaction.get(oldtx.id)
         if (tx.broker == broker ) {
           if (tx.txType == TariffTransactionType.CONSUME ||
-              tx.txType == TariffTransactionType.PRODUCE) {
+          tx.txType == TariffTransactionType.PRODUCE) {
             netLoad += tx.quantity
           }
         }
@@ -150,7 +149,7 @@ class AccountingService
    * normal case.
    */
   @Synchronized
-  BigDecimal getCurrentMarketPosition (Broker broker)
+  double getCurrentMarketPosition (Broker broker)
   {
     Timeslot current = Timeslot.currentTimeslot()
     log.debug "current timeslot: ${current.serialNumber}"
@@ -174,7 +173,7 @@ class AccountingService
       // use username here rather than broker, because it seems that
       // the broker instance in the transaction and the broker instance
       // from the list are not necessarily the same object...
-      brokerMsg[broker.username] = [] as Set
+      brokerMsg[broker.username] = []as Set
     }
     // walk through the pending transactions and run the updates
     pendingTransactions.each { oldtx ->
@@ -191,7 +190,7 @@ class AccountingService
     }
     pendingTransactions.clear()
     // for each broker, compute interest and send messages
-    BigDecimal rate = bankInterest/365.0
+    double rate = bankInterest/365.0
     Broker.list().each { broker ->
       // run interest payments at midnight
       if (timeService.hourOfDay == 0) {
@@ -201,10 +200,10 @@ class AccountingService
           // rate on positive balance is 1/2 of negative
           brokerRate /= 2.0
         }
-        BigDecimal interest = cash.balance * brokerRate
-        brokerMsg[broker.username] << 
+        double interest = cash.balance * brokerRate
+        brokerMsg[broker.username] <<
             new BankTransaction(broker: broker, amount: interest,
-                                postedTime: timeService.currentTime)
+            postedTime: timeService.currentTime)
         cash.balance += interest
       }
       broker.save()

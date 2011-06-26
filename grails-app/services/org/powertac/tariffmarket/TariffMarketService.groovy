@@ -18,17 +18,20 @@ package org.powertac.tariffmarket
 import java.util.List
 
 import org.joda.time.DateTime
-import org.joda.time.Instant
 import org.joda.time.DateTimeZone
+import org.joda.time.Instant
 import org.powertac.common.AbstractCustomer
 import org.powertac.common.Broker
 import org.powertac.common.PluginConfig
-import org.powertac.common.TimeService
 import org.powertac.common.Tariff
 import org.powertac.common.TariffSpecification
 import org.powertac.common.TariffSubscription
 import org.powertac.common.TariffTransaction
+import org.powertac.common.TimeService
+import org.powertac.common.enumerations.PowerType
+import org.powertac.common.enumerations.TariffTransactionType
 import org.powertac.common.interfaces.Accounting
+import org.powertac.common.interfaces.BrokerProxy
 import org.powertac.common.interfaces.CompetitionControl
 import org.powertac.common.interfaces.NewTariffListener
 import org.powertac.common.interfaces.TimeslotPhaseProcessor
@@ -37,9 +40,6 @@ import org.powertac.common.msg.TariffRevoke
 import org.powertac.common.msg.TariffStatus
 import org.powertac.common.msg.TariffUpdate
 import org.powertac.common.msg.VariableRateUpdate
-import org.powertac.common.enumerations.PowerType
-import org.powertac.common.enumerations.TariffTransactionType
-import org.powertac.common.interfaces.BrokerProxy
 
 /**
  * Implements the Tariff Market abstraction. Incoming tariff-related
@@ -48,27 +48,26 @@ import org.powertac.common.interfaces.BrokerProxy
  * @author John Collins
  */
 class TariffMarketService
-    implements org.powertac.common.interfaces.TariffMarket,
-               org.powertac.common.interfaces.BrokerMessageListener,
-               org.powertac.common.interfaces.TimeslotPhaseProcessor
-{
+implements org.powertac.common.interfaces.TariffMarket,
+org.powertac.common.interfaces.BrokerMessageListener,
+org.powertac.common.interfaces.TimeslotPhaseProcessor {
   //static transactional = false
 
   def timeService
   Accounting accountingService
   CompetitionControl competitionControlService
   BrokerProxy brokerProxyService
-  
+
   // maps power type to id of corresponding default tariff
   Map defaultTariff = [:]
 
   // read this from plugin config
   //PluginConfig configuration
   int simulationPhase = 2
-  BigDecimal tariffPublicationFee = 0.0
-  BigDecimal tariffRevocationFee = 0.0
+  double tariffPublicationFee = 0.0
+  double tariffRevocationFee = 0.0
   int publicationInterval = 6
-  
+
   /**
    * Register for phase 2 activation, to drive tariff publication
    */
@@ -76,14 +75,14 @@ class TariffMarketService
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
     brokerProxyService?.registerBrokerTariffListener(this)
-    BigDecimal fee = config.configuration['tariffPublicationFee']?.toBigDecimal()
+    double fee = config.configuration['tariffPublicationFee']?.toDouble()
     if (fee == null) {
       log.error "Tariff publication fee not specified. Default to ${tariffPublicationFee}"
     }
     else {
       tariffPublicationFee = fee
     }
-    fee = config.configuration['tariffRevocationFee']?.toBigDecimal()
+    fee = config.configuration['tariffRevocationFee']?.toDouble()
     if (fee == null) {
       log.error "Tariff revocation fee not specified. Default to ${tariffPublicationFee}"
     }
@@ -113,7 +112,7 @@ class TariffMarketService
       brokerProxyService.sendMessage(result.broker, result)
     }
   }
-  
+
   /**
    * Process a bogus null input.
    */
@@ -123,7 +122,7 @@ class TariffMarketService
     log.error("bogus tariff input ${junk}")
     return null
   }
-  
+
   /**
    * Processes a newly-published tariff.
    */
@@ -138,10 +137,10 @@ class TariffMarketService
     if (!spec.validate()) {
       log.error("Failed to validate TariffSpec ${spec.id} from ${spec.brokerId}: ${spec.errors.allErrors}")
       return new TariffStatus(broker: spec.broker,
-                              tariffId: spec.id,
-                              updateId: spec.id,
-                              status: TariffStatus.Status.invalidTariff,
-                              message: "spec: ${spec.errors.allErrors}")
+      tariffId: spec.id,
+      updateId: spec.id,
+      status: TariffStatus.Status.invalidTariff,
+      message: "spec: ${spec.errors.allErrors}")
     }
     spec.save()
     Tariff tariff = new Tariff(tariffSpec: spec)
@@ -149,10 +148,10 @@ class TariffMarketService
     if (!tariff.validate()) {
       log.error("Failed to validate new Tariff: ${tariff.errors.allErrors}")
       return new TariffStatus(broker: spec.broker,
-                              tariffId: spec.id,
-                              updateId: spec.id,
-                              status: TariffStatus.Status.invalidTariff,
-                              message: "tariff: ${tariff.errors.allErrors}")
+      tariffId: spec.id,
+      updateId: spec.id,
+      status: TariffStatus.Status.invalidTariff,
+      message: "tariff: ${tariff.errors.allErrors}")
     }
     else {
       log.info("new tariff ${spec.id}")
@@ -160,14 +159,14 @@ class TariffMarketService
       broker.addToTariffs(tariff)
       broker.save()
       //newTariffs << tariff
-      TariffTransaction pub = 
+      TariffTransaction pub =
           accountingService.addTariffTransaction(TariffTransactionType.PUBLISH,
-              tariff, null, 0, 0.0, tariffPublicationFee)
+          tariff, null, 0, 0.0, tariffPublicationFee)
     }
     return new TariffStatus(broker: spec.broker,
-                            tariffId: spec.id,
-                            updateId: spec.id,
-                            status: TariffStatus.Status.success)
+    tariffId: spec.id,
+    updateId: spec.id,
+    status: TariffStatus.Status.success)
   }
 
   /**
@@ -187,7 +186,7 @@ class TariffMarketService
     }
     return success(update)
   }
-  
+
   /**
    * Handles tariff revocation.
    */
@@ -203,16 +202,16 @@ class TariffMarketService
       log.info("Revoke tariff ${update.tariffId}")
       // The actual revocation processing is delegated to the Customer,
       // who is obligated to call getRevokedSubscriptions periodically.
-      
+
       // If there are active subscriptions, then we have to charge a fee.
-      def activeSubscriptions = 
+      def activeSubscriptions =
           TariffSubscription.findAllByTariff(tariff)
-              .findAll { sub -> sub.customersCommitted > 0 }
+          .findAll { sub -> sub.customersCommitted > 0 }
       if (activeSubscriptions.size() > 0) {
         log.info("Revoked tariff has ${activeSubscriptions.size()} active subscriptions")
-        TariffTransaction rev = 
-          accountingService.addTariffTransaction(TariffTransactionType.REVOKE,
-              tariff, null, 0, 0.0, tariffRevocationFee)
+        TariffTransaction rev =
+            accountingService.addTariffTransaction(TariffTransactionType.REVOKE,
+            tariff, null, 0, 0.0, tariffRevocationFee)
       }
     }
     return success(update)
@@ -236,23 +235,23 @@ class TariffMarketService
     else {
       // failed to add hourly charge
       new TariffStatus(broker: update.broker,
-                       tariffId: update.tariffId,
-                       updateId: update.id,
-                       status: TariffStatus.Status.invalidUpdate,
-                       message: "update: could not add hourly charge")
+          tariffId: update.tariffId,
+          updateId: update.id,
+          status: TariffStatus.Status.invalidUpdate,
+          message: "update: could not add hourly charge")
     }
   }
 
-  // ----------------------- Customer API --------------------------  
-  
+  // ----------------------- Customer API --------------------------
+
   def registrations = []
-  
+
   @Override
   public void registerNewTariffListener (NewTariffListener listener)
   {
-    registrations.add(listener)    
+    registrations.add(listener)
   }
-  
+
   // Handle distribution of new tariffs to customers
   void activate (Instant time, int phase)
   {
@@ -271,7 +270,7 @@ class TariffMarketService
    * Publishes pending tariffs to customers and brokers
    */
   void publishTariffs ()
-  { 
+  {
     List publishedTariffs = Tariff.findAllByState(Tariff.State.PENDING)
     log.info "publishing ${publishedTariffs.size()} new tariffs"
     publishedTariffs.each { tariff ->
@@ -300,16 +299,16 @@ class TariffMarketService
    */
   @Override
   TariffSubscription subscribeToTariff (Tariff tariff,
-                                        AbstractCustomer customer, 
-                                        int customerCount)
+  AbstractCustomer customer,
+  int customerCount)
   {
     if (tariff.isExpired())
       return null
-    
+
     TariffSubscription sub = TariffSubscription.findByTariffAndCustomer(tariff, customer)
     if (sub == null) {
       sub = new TariffSubscription(customer: customer,
-                                   tariff: tariff)
+          tariff: tariff)
       sub.save()
       // temp fix
       //sub.accountingService = accountingService
@@ -339,8 +338,8 @@ class TariffMarketService
   public List<TariffSubscription> getRevokedSubscriptionList (AbstractCustomer customer)
   {
     return TariffSubscription.findAllByCustomer(customer).
-        findAll { sub ->
-           sub.tariff.state == Tariff.State.KILLED && sub.customersCommitted > 0 }
+    findAll { sub ->
+      sub.tariff.state == Tariff.State.KILLED && sub.customersCommitted > 0 }
   }
 
   /**
@@ -380,33 +379,39 @@ class TariffMarketService
     // TODO Auto-generated method stub
     return null;
   }
-    
+
   private List validateUpdate (TariffUpdate update)
   {
     if (!update.validate()) {
       log.error("Failed to validate TariffUpdate: ${update.errors.allErrors}")
-      return [null, new TariffStatus(broker: update.broker,
-                                     tariffId: update.tariffId,
-                                     updateId: update.id,
-                                     status: TariffStatus.Status.invalidUpdate,
-                                     message: "update: ${update.errors.allErrors}")]
+      return [
+        null,
+        new TariffStatus(broker: update.broker,
+        tariffId: update.tariffId,
+        updateId: update.id,
+        status: TariffStatus.Status.invalidUpdate,
+        message: "update: ${update.errors.allErrors}")
+      ]
     }
     Tariff tariff = Tariff.findBySpecId(update.tariffId)
     if (tariff == null) {
       log.error("update - no such tariff ${update.tariffId}, broker ${update.brokerId}")
-      return [null, new TariffStatus(broker: update.broker,
-                                     tariffId: update.tariffId,
-                                     updateId: update.id,
-                                     status: TariffStatus.Status.noSuchTariff)]
+      return [
+        null,
+        new TariffStatus(broker: update.broker,
+        tariffId: update.tariffId,
+        updateId: update.id,
+        status: TariffStatus.Status.noSuchTariff)
+      ]
     }
     return [tariff, null]
   }
-  
+
   private TariffStatus success (TariffUpdate update)
   {
     return new TariffStatus(broker: update.broker,
-                            tariffId: update.tariffId,
-                            updateId: update.id,
-                            status: TariffStatus.Status.success)
+    tariffId: update.tariffId,
+    updateId: update.id,
+    status: TariffStatus.Status.success)
   }
 }

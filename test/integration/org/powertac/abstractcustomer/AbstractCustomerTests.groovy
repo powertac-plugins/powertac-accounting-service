@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.powertac.tariffmarket
+package org.powertac.abstractcustomer
 
 import grails.test.*
 
@@ -60,7 +60,7 @@ class AbstractCustomerTests extends GroovyTestCase {
 
     // create a Competition, needed for initialization
     if (Competition.count() == 0) {
-      comp = new Competition(name: 'accounting-test')
+      comp = new Competition(name: 'abstract-customer-test')
       assert comp.save()
     }
     else {
@@ -120,7 +120,7 @@ class AbstractCustomerTests extends GroovyTestCase {
     }
     assert(customerInfo.save())
 
-    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer = new AbstractCustomer(customerInfo: customerInfo)
     customer.init()
     customer.subscribeDefault()
     if (!customer.validate()) {
@@ -135,7 +135,7 @@ class AbstractCustomerTests extends GroovyTestCase {
     customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold,
         powerTypes: [PowerType.CONSUMPTION])
     customerInfo.save()
-    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer = new AbstractCustomer(customerInfo: customerInfo)
     customer.init()
     customer.subscribeDefault()
     customer.save()
@@ -154,7 +154,7 @@ class AbstractCustomerTests extends GroovyTestCase {
     customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold,
         powerTypes: [PowerType.CONSUMPTION])
     customerInfo.save()
-    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer = new AbstractCustomer(customerInfo: customerInfo)
     customer.init()
     customer.subscribeDefault()
     customer.save()
@@ -181,7 +181,7 @@ class AbstractCustomerTests extends GroovyTestCase {
     customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType))
 
     List<Tariff> lastTariff = customer.subscriptions?.tariff
-    
+
     lastTariff.each { tariff ->
       customer.changeSubscription(tariff,tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType))
       customer.changeSubscription(tariffMarketService.getDefaultTariff(defaultTariffSpec.powerType), tariff, 5)
@@ -193,7 +193,7 @@ class AbstractCustomerTests extends GroovyTestCase {
   {
     customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerHousehold, powerTypes: [PowerType.CONSUMPTION])
     customerInfo.save()
-    customer = new AbstractCustomer(CustomerInfo: customerInfo)
+    customer = new AbstractCustomer(customerInfo: customerInfo)
     customer.init()
     customer.subscribeDefault()
     customer.save()
