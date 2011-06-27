@@ -128,6 +128,8 @@ class AbstractProducerTests extends GroovyTestCase {
     }
     assert(producer.save())
   }
+
+
   void testPowerProduction()
   {
     customerInfo = new CustomerInfo(name:"Anty", customerType: CustomerType.CustomerProducer,
@@ -142,19 +144,8 @@ class AbstractProducerTests extends GroovyTestCase {
     assertFalse("Customer produced power", producer.subscriptions?.totalUsage == 0)
     assertEquals("Tariff Transaction Created", 1,
         TariffTransaction.findByTxType(TariffTransactionType.PRODUCE).count())
-
-    producer.producePower(broker2,100)
-    assertEquals("No new tariff Transaction Created", 1,
-        TariffTransaction.findByTxType(TariffTransactionType.PRODUCE).count())
-
-    producer.producePower(broker1,100)
-    assertEquals("A second tariff Transaction Created", 2,
-        TariffTransaction.findByTxType(TariffTransactionType.PRODUCE).count())
-
-    producer.producePower(tariffMarketService.getDefaultTariff(PowerType.PRODUCTION),100)
-    assertEquals("A third tariff Transaction Created", 3,
-        TariffTransaction.findByTxType(TariffTransactionType.PRODUCE).count())
   }
+
 
   void testChangingSubscriptions()
   {
@@ -203,6 +194,7 @@ class AbstractProducerTests extends GroovyTestCase {
     producer.save()
     println(TariffSubscription.count())
     // create some tariffs
+
     def tsc1 = new TariffSpecification(broker: broker1,
         expiration: new Instant(now.millis + TimeService.DAY * 5),
         minDuration: TimeService.WEEK * 8, powerType: PowerType.PRODUCTION)
@@ -229,6 +221,7 @@ class AbstractProducerTests extends GroovyTestCase {
     def tclist = tariffMarketService.getActiveTariffList(PowerType.PRODUCTION)
     assertEquals("4 production tariffs", 4, tclist.size())
     assertEquals("three transaction", 3, TariffTransaction.count())
+
     TariffSubscription tsd =
         TariffSubscription.findByTariffAndCustomer(tariffMarketService.getDefaultTariff(PowerType.CONSUMPTION), producer)
     producer.subscribe(tc1, 23)
@@ -245,6 +238,7 @@ class AbstractProducerTests extends GroovyTestCase {
     producer.unsubscribe(ts3, 20)
     println(TariffSubscription.count())
     assertEquals("4 Subscriptions for producer",4, producer.subscriptions?.size())
+
     timeService.currentTime = new Instant(timeService.currentTime.millis + TimeService.HOUR)
     TariffRevoke tex = new TariffRevoke(tariffId: tsc2.id, broker: tc2.broker)
     def status = tariffMarketService.processTariff(tex)
@@ -259,6 +253,7 @@ class AbstractProducerTests extends GroovyTestCase {
     assertEquals("one item in list", 1, revokedCustomer.size())
     assertEquals("it's the correct one", TariffSubscription.findByTariffAndCustomer(tc2,producer), revokedCustomer[0])
     producer.checkRevokedSubscriptions()
+
     println(TariffSubscription.count())
     assertEquals("3 Subscriptions for producer", 3, producer.subscriptions?.size())
     TariffRevoke tex3 = new TariffRevoke(tariffId: tsc3.id, broker: tc1.broker)
@@ -274,6 +269,7 @@ class AbstractProducerTests extends GroovyTestCase {
     assertEquals("one item in list", 1, revokedCustomer3.size())
     assertEquals("it's the correct one", TariffSubscription.findByTariffAndCustomer(tc3,producer), revokedCustomer3[0])
     println(revokedCustomer3.toString())
+
     producer.checkRevokedSubscriptions()
     assertEquals("2 Subscriptions for producer", 2, producer.subscriptions?.size())
     TariffRevoke tex2 = new TariffRevoke(tariffId: tsc1.id, broker: tc1.broker)
