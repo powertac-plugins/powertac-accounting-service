@@ -382,6 +382,7 @@ class AbstractProducerServiceTests extends GroovyTestCase {
     abstractProducerService.activate(timeService.currentTime, 2)
     assertEquals("newTariffs list is again empty", 0, Tariff.findAllByState(Tariff.State.PENDING).size())
   }
+
   void testEvaluatingTariffs() {
     initializeService()
     println("Number Of Subscriptions in DB: ${TariffSubscription.count()}")
@@ -410,13 +411,12 @@ class AbstractProducerServiceTests extends GroovyTestCase {
     assertNotNull("third tariff found", tc3)
     // make sure we have three active tariffs
     def tclist = tariffMarketService.getActiveTariffList(PowerType.PRODUCTION)
-    assertEquals("4 consumption tariffs", 4, tclist.size())
+    assertEquals("4 production tariffs", 4, tclist.size())
     assertEquals("three transaction", 3, TariffTransaction.count())
     AbstractProducer.list().each{ producer ->
       producer.possibilityEvaluationNewTariffs(Tariff.list())
     }
   }
-
 
 
 }
