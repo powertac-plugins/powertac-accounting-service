@@ -191,13 +191,13 @@ class AccountingServiceTests extends GroovyTestCase
       tariffB1, customerInfo2, 7, 77.0, 7.7)
     assertEquals("correct number in list", 2, accountingService.pendingTransactions.size())
     assertEquals("correct number in db", 2, TariffTransaction.count())
-    def ttx = TariffTransaction.get(1)
+    def ttx = TariffTransaction.findByTxType(TariffTransactionType.SIGNUP)
     assertNotNull("first ttx not null", ttx)
     assertEquals("correct charge id 0", 42.1, ttx.charge, 1e-6)
     Broker b1 = ttx.broker
     Broker b2 = Broker.get(bob.id)
     assertEquals("same broker", b1, b2)
-    ttx = TariffTransaction.get(2)
+    ttx = TariffTransaction.findByTxType(TariffTransactionType.CONSUME)
     assertNotNull("second ttx not null", ttx)
     assertEquals("correct amount id 1", 77.0, ttx.quantity, 1e-6)
   }

@@ -214,7 +214,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("one transaction", 1, TariffTransaction.count())
     TariffTransaction ttx = TariffTransaction.findByPostedTime(timeService.currentTime)
     assertNotNull("found transaction", ttx)
-    assertEquals("correct tariff", tf, ttx.tariff)
+    assertEquals("correct tariff", tf.tariffSpec, ttx.tariffSpec)
     assertEquals("correct type", TariffTransactionType.PUBLISH, ttx.txType)
     assertEquals("correct amount", 42.0, ttx.charge, 1e-6)
     // make sure the tariff is in the output list
@@ -587,7 +587,7 @@ class TariffMarketServiceTests extends GrailsUnitTestCase
     assertEquals("one more transaction", 4, TariffTransaction.count())
     TariffTransaction ttx = TariffTransaction.findByPostedTime(timeService.currentTime)
     assertNotNull("found transaction", ttx)
-    assertEquals("correct tariff", tc2, ttx.tariff)
+    assertEquals("correct tariff", tc2.tariffSpec, ttx.tariffSpec)
     assertEquals("correct type", TariffTransactionType.REVOKE, ttx.txType)
     assertEquals("correct amount", 420.0, ttx.charge, 1e-6)
   }

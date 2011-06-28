@@ -27,6 +27,7 @@ class TariffMarketInitializationService
   static transactional = true
 
   def tariffMarketService // autowire
+  def tariffRateService
   
   @Override
   public void setDefaults ()
@@ -51,6 +52,7 @@ class TariffMarketInitializationService
     }
     else {
       tariffMarketService.init(tariffMarketConfig)
+      tariffRateService.init()
       return 'TariffMarket'
     }
     return 'fail'
