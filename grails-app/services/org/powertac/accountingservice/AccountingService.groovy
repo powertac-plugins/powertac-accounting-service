@@ -87,7 +87,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
                                                 double charge) {
     // Note that tariff may be stale
     TariffTransaction ttx = new TariffTransaction(broker: Broker.get(tariff.broker.id),
-        postedTime: timeService.currentTime, txType: txType, tariff: Tariff.get(tariff.id),
+        postedTime: timeService.currentTime, txType: txType, 
+        tariffSpec: TariffSpecification.get(tariff.specId),
         customerInfo: customer, customerCount: customerCount,
         quantity: quantity, charge: charge)
     ttx.save()
@@ -248,7 +249,6 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   private void updateCash(Broker broker, BigDecimal amount) {
     CashPosition cash = broker.cash
     cash.deposit amount
-    //cash.addToTariffTransactions(tx)
     cash.save()
     //broker.save()
   }
