@@ -30,8 +30,9 @@ import org.powertac.common.msg.*
  * @author John Collins
  */
 class AccountingService
-implements org.powertac.common.interfaces.Accounting,
-org.powertac.common.interfaces.TimeslotPhaseProcessor {
+  implements org.powertac.common.interfaces.Accounting,
+  org.powertac.common.interfaces.TimeslotPhaseProcessor 
+{
   //static transactional = false
 
   def timeService // autowire reference
@@ -48,7 +49,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   /**
    * Register for phase 3 activation, to drive tariff publication
    */
-  void init(PluginConfig config) {
+  void init(PluginConfig config) 
+  {
     pendingTransactions.clear()
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
     double value = config.configuration['bankInterest']?.toDouble()
@@ -64,7 +66,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   MarketTransaction addMarketTransaction(Broker broker,
                                          Timeslot timeslot,
                                          double price,
-                                         double quantity) {
+                                         double quantity) 
+  {
     MarketTransaction mtx = new MarketTransaction(broker: broker,
         timeslot: timeslot,
         price: price,
@@ -84,7 +87,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
                                                 CustomerInfo customer,
                                                 int customerCount,
                                                 double quantity,
-                                                double charge) {
+                                                double charge) 
+  {
     // Note that tariff may be stale
     TariffTransaction ttx = new TariffTransaction(broker: Broker.get(tariff.broker.id),
         postedTime: timeService.currentTime, txType: txType, 
@@ -99,7 +103,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   @Synchronized
   public DistributionTransaction addDistributionTransaction(Broker broker,
                                                             BigDecimal quantity,
-                                                            BigDecimal charge) {
+                                                            BigDecimal charge) 
+  {
     DistributionTransaction dtx = new DistributionTransaction(broker: Broker.get(broker.id),
         postedTime: timeService.currentTime, quantity: quantity, charge: charge)
     dtx.save()
@@ -110,7 +115,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   @Synchronized
   public BalancingTransaction addBalancingTransaction(Broker broker,
                                                       BigDecimal quantity,
-                                                      BigDecimal charge) {
+                                                      BigDecimal charge) 
+  {
     BalancingTransaction btx = new BalancingTransaction(broker: Broker.get(broker.id),
         postedTime: timeService.currentTime, quantity: quantity, charge: charge)
     btx.save()
@@ -121,7 +127,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   // Gets the net load. Note that this only works BEFORE the day's transactions
   // have been processed.
   @Synchronized
-  double getCurrentNetLoad(Broker broker) {
+  double getCurrentNetLoad(Broker broker) 
+  {
     double netLoad = 0.0
     pendingTransactions.each { oldtx ->
       if (oldtx instanceof TariffTransaction) {
@@ -144,11 +151,12 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
    * normal case.
    */
   @Synchronized
-  double getCurrentMarketPosition(Broker broker) {
+  double getCurrentMarketPosition(Broker broker) 
+  {
     Timeslot current = Timeslot.currentTimeslot()
     log.debug "current timeslot: ${current.serialNumber}"
     MarketPosition position =
-    MarketPosition.findByBrokerAndTimeslot(broker, current)
+        MarketPosition.findByBrokerAndTimeslot(broker, current)
     if (position == null) {
       log.debug "null position for ts ${current.serialNumber}"
       return 0.0
@@ -160,7 +168,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   // session from the one in which the transaction was created, so
   // the transactions themselves may be stale.
   @Synchronized
-  void activate(Instant time, int phaseNumber) {
+  void activate(Instant time, int phaseNumber) 
+  {
     def brokerMsg = [:]
     Broker.list().each { broker ->
       // use username here rather than broker, because it seems that
@@ -222,11 +231,12 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   }
 
   // process a market transaction
-  private void processTransaction(MarketTransaction tx, Set messages) {
+  private void processTransaction(MarketTransaction tx, Set messages) 
+  {
     Broker broker = tx.broker
     updateCash(broker, -tx.price * Math.abs(tx.quantity))
     MarketPosition mkt =
-    MarketPosition.findByBrokerAndTimeslot(broker, tx.timeslot)
+        MarketPosition.findByBrokerAndTimeslot(broker, tx.timeslot)
     if (mkt == null) {
       mkt = new MarketPosition(broker: broker, timeslot: tx.timeslot)
       if (!mkt.validate()) {
@@ -246,10 +256,10 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
     log.debug "MarketPosition count = ${MarketPosition.count()}"
   }
 
-  private void updateCash(Broker broker, BigDecimal amount) {
+  private void updateCash(Broker broker, BigDecimal amount) 
+  {
     CashPosition cash = broker.cash
     cash.deposit amount
     cash.save()
-    //broker.save()
   }
 }

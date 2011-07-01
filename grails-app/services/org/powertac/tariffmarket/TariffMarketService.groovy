@@ -48,9 +48,10 @@ import org.powertac.common.msg.VariableRateUpdate
  * @author John Collins
  */
 class TariffMarketService
-implements org.powertac.common.interfaces.TariffMarket,
-org.powertac.common.interfaces.BrokerMessageListener,
-org.powertac.common.interfaces.TimeslotPhaseProcessor {
+  implements org.powertac.common.interfaces.TariffMarket,
+  org.powertac.common.interfaces.BrokerMessageListener,
+  org.powertac.common.interfaces.TimeslotPhaseProcessor 
+{
   //static transactional = false
 
   def timeService
@@ -299,8 +300,8 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
    */
   @Override
   TariffSubscription subscribeToTariff (Tariff tariff,
-  AbstractCustomer customer,
-  int customerCount)
+                                        AbstractCustomer customer,
+                                        int customerCount)
   {
     if (tariff.isExpired())
       return null
@@ -338,8 +339,9 @@ org.powertac.common.interfaces.TimeslotPhaseProcessor {
   public List<TariffSubscription> getRevokedSubscriptionList (AbstractCustomer customer)
   {
     return TariffSubscription.findAllByCustomer(customer).
-    findAll { sub ->
-      sub.tariff.state == Tariff.State.KILLED && sub.customersCommitted > 0 }
+        findAll { sub ->
+          sub.tariff.state == Tariff.State.KILLED && sub.customersCommitted > 0 
+        }
   }
 
   /**
