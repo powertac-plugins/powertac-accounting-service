@@ -138,10 +138,9 @@ class TariffMarketService
     if (!spec.validate()) {
       log.error("Failed to validate TariffSpec ${spec.id} from ${spec.brokerId}: ${spec.errors.allErrors}")
       return new TariffStatus(broker: spec.broker,
-      tariffId: spec.id,
-      updateId: spec.id,
-      status: TariffStatus.Status.invalidTariff,
-      message: "spec: ${spec.errors.allErrors}")
+                              tariffId: spec.id, updateId: spec.id,
+                              status: TariffStatus.Status.invalidTariff,
+                              message: "spec: ${spec.errors.allErrors}")
     }
     spec.save()
     Tariff tariff = new Tariff(tariffSpec: spec)
@@ -149,10 +148,9 @@ class TariffMarketService
     if (!tariff.validate()) {
       log.error("Failed to validate new Tariff: ${tariff.errors.allErrors}")
       return new TariffStatus(broker: spec.broker,
-      tariffId: spec.id,
-      updateId: spec.id,
-      status: TariffStatus.Status.invalidTariff,
-      message: "tariff: ${tariff.errors.allErrors}")
+                              tariffId: spec.id, updateId: spec.id,
+                              status: TariffStatus.Status.invalidTariff,
+                              message: "tariff: ${tariff.errors.allErrors}")
     }
     else {
       log.info("new tariff ${spec.id}")
@@ -162,12 +160,11 @@ class TariffMarketService
       //newTariffs << tariff
       TariffTransaction pub =
           accountingService.addTariffTransaction(TariffTransactionType.PUBLISH,
-          tariff, null, 0, 0.0, tariffPublicationFee)
+                                                 tariff, null, 0, 0.0, tariffPublicationFee)
     }
     return new TariffStatus(broker: spec.broker,
-    tariffId: spec.id,
-    updateId: spec.id,
-    status: TariffStatus.Status.success)
+                            tariffId: spec.id, updateId: spec.id,
+                            status: TariffStatus.Status.success)
   }
 
   /**
@@ -207,12 +204,13 @@ class TariffMarketService
       // If there are active subscriptions, then we have to charge a fee.
       def activeSubscriptions =
           TariffSubscription.findAllByTariff(tariff)
-          .findAll { sub -> sub.customersCommitted > 0 }
+              .findAll { sub -> sub.customersCommitted > 0 }
       if (activeSubscriptions.size() > 0) {
         log.info("Revoked tariff has ${activeSubscriptions.size()} active subscriptions")
         TariffTransaction rev =
             accountingService.addTariffTransaction(TariffTransactionType.REVOKE,
-            tariff, null, 0, 0.0, tariffRevocationFee)
+                                                   tariff, null, 0, 0.0,
+                                                   tariffRevocationFee)
       }
     }
     return success(update)
@@ -236,10 +234,10 @@ class TariffMarketService
     else {
       // failed to add hourly charge
       new TariffStatus(broker: update.broker,
-          tariffId: update.tariffId,
-          updateId: update.id,
-          status: TariffStatus.Status.invalidUpdate,
-          message: "update: could not add hourly charge")
+                       tariffId: update.tariffId,
+                       updateId: update.id,
+                       status: TariffStatus.Status.invalidUpdate,
+                       message: "update: could not add hourly charge")
     }
   }
 
@@ -338,10 +336,9 @@ class TariffMarketService
   @Override
   public List<TariffSubscription> getRevokedSubscriptionList (AbstractCustomer customer)
   {
-    return TariffSubscription.findAllByCustomer(customer).
-        findAll { sub ->
-          sub.tariff.state == Tariff.State.KILLED && sub.customersCommitted > 0 
-        }
+    return TariffSubscription.findAllByCustomer(customer). findAll { sub ->
+      sub.tariff.state == Tariff.State.KILLED && sub.customersCommitted > 0 
+    }
   }
 
   /**
@@ -389,10 +386,9 @@ class TariffMarketService
       return [
         null,
         new TariffStatus(broker: update.broker,
-        tariffId: update.tariffId,
-        updateId: update.id,
-        status: TariffStatus.Status.invalidUpdate,
-        message: "update: ${update.errors.allErrors}")
+                         tariffId: update.tariffId, updateId: update.id,
+                         status: TariffStatus.Status.invalidUpdate,
+                         message: "update: ${update.errors.allErrors}")
       ]
     }
     Tariff tariff = Tariff.findBySpecId(update.tariffId)
@@ -401,9 +397,8 @@ class TariffMarketService
       return [
         null,
         new TariffStatus(broker: update.broker,
-        tariffId: update.tariffId,
-        updateId: update.id,
-        status: TariffStatus.Status.noSuchTariff)
+                         tariffId: update.tariffId, updateId: update.id,
+                         status: TariffStatus.Status.noSuchTariff)
       ]
     }
     return [tariff, null]
@@ -412,8 +407,7 @@ class TariffMarketService
   private TariffStatus success (TariffUpdate update)
   {
     return new TariffStatus(broker: update.broker,
-    tariffId: update.tariffId,
-    updateId: update.id,
-    status: TariffStatus.Status.success)
+                            tariffId: update.tariffId, updateId: update.id,
+                            status: TariffStatus.Status.success)
   }
 }
