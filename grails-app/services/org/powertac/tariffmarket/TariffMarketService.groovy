@@ -68,6 +68,10 @@ class TariffMarketService
   double tariffPublicationFee = 0.0
   double tariffRevocationFee = 0.0
   int publicationInterval = 6
+  
+  // synchronized queue for incoming messages
+  List incoming = []
+  Object incomingLock = new Object()
 
   /**
    * Register for phase 2 activation, to drive tariff publication
@@ -106,11 +110,9 @@ class TariffMarketService
   @Override
   public void receiveMessage (msg)
   {
-    // dispatch incoming message
-    def result = processTariff(msg)
-    // return non-null result as msg
-    if (result != null) {
-      brokerProxyService.sendMessage(result.broker, result)
+    // queue incoming message
+    synchronized(incomingLock) {
+      incoming << msg
     }
   }
 
@@ -130,7 +132,7 @@ class TariffMarketService
   @Override
   public TariffStatus processTariff (TariffSpecification spec)
   {
-    Broker broker = spec.broker
+    Broker broker = Broker.get(spec.broker.id)
     if (broker == null) {
       log.error("No such broker ${spec}")
       return null
@@ -251,9 +253,11 @@ class TariffMarketService
     registrations.add(listener)
   }
 
-  // Handle distribution of new tariffs to customers
+  // Process queued messages, then
+  // handle distribution of new tariffs to customers
   void activate (Instant time, int phase)
   {
+    processIncoming()
     if (publicationInterval > 24) {
       log.error "tariff publication interval ${publicationInterval} > 24 hr"
       publicationInterval = 24
@@ -262,6 +266,23 @@ class TariffMarketService
     if (msec % (publicationInterval * TimeService.HOUR) == 0) {
       // time to publish
       publishTariffs()
+    }
+  }
+  
+  void processIncoming()
+  {
+    while (incoming.size() > 0) {
+      def msg
+      synchronized (incomingLock) {
+        msg = incoming.first()
+        incoming = incoming.tail()
+      }
+      // dispatch incoming message
+      def result = processTariff(msg)
+      // return non-null result as msg
+      if (result != null) {
+        brokerProxyService.sendMessage(result.broker, result)
+      }
     }
   }
 
@@ -381,11 +402,12 @@ class TariffMarketService
 
   private List validateUpdate (TariffUpdate update)
   {
+    Broker broker = Broker.get(update.broker.id)
     if (!update.validate()) {
       log.error("Failed to validate TariffUpdate: ${update.errors.allErrors}")
       return [
         null,
-        new TariffStatus(broker: update.broker,
+        new TariffStatus(broker: broker,
                          tariffId: update.tariffId, updateId: update.id,
                          status: TariffStatus.Status.invalidUpdate,
                          message: "update: ${update.errors.allErrors}")
@@ -396,7 +418,7 @@ class TariffMarketService
       log.error("update - no such tariff ${update.tariffId}, broker ${update.brokerId}")
       return [
         null,
-        new TariffStatus(broker: update.broker,
+        new TariffStatus(broker: broker,
                          tariffId: update.tariffId, updateId: update.id,
                          status: TariffStatus.Status.noSuchTariff)
       ]
@@ -406,7 +428,8 @@ class TariffMarketService
 
   private TariffStatus success (TariffUpdate update)
   {
-    return new TariffStatus(broker: update.broker,
+    Broker broker = Broker.get(update.broker.id)
+    return new TariffStatus(broker: broker,
                             tariffId: update.tariffId, updateId: update.id,
                             status: TariffStatus.Status.success)
   }
