@@ -133,7 +133,7 @@ class AccountingService
     pendingTransactions.each { oldtx ->
       if (oldtx instanceof TariffTransaction) {
         TariffTransaction tx = TariffTransaction.get(oldtx.id)
-        if (tx.broker == broker) {
+        if (tx.broker.username == broker.username) {
           if (tx.txType == TariffTransactionType.CONSUME ||
               tx.txType == TariffTransactionType.PRODUCE) {
             netLoad += tx.quantity
