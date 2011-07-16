@@ -72,14 +72,22 @@ class TariffMarketService
   // synchronized queue for incoming messages
   List incoming = []
   Object incomingLock = new Object()
+  
+  /**
+   * Sets up to receive incoming messages. This needs to be done before brokers
+   * can log in.
+   */
+  void setup ()
+  {
+    brokerProxyService?.registerBrokerTariffListener(this)
+  }
 
   /**
-   * Register for phase 2 activation, to drive tariff publication
+   * Registers for phase 2 activation, to drive tariff publication
    */
   void init (PluginConfig config)
   {
     competitionControlService?.registerTimeslotPhase(this, simulationPhase)
-    brokerProxyService?.registerBrokerTariffListener(this)
     double fee = config.configuration['tariffPublicationFee']?.toDouble()
     if (fee == null) {
       log.error "Tariff publication fee not specified. Default to ${tariffPublicationFee}"

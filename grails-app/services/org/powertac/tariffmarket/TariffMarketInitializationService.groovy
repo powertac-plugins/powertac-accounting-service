@@ -32,6 +32,7 @@ class TariffMarketInitializationService
   @Override
   public void setDefaults ()
   {
+    tariffMarketService.setup()
     PluginConfig tariffMarketConfig =
         new PluginConfig(roleName: 'TariffMarket',
                          configuration: [tariffPublicationFee: '-100.0',
